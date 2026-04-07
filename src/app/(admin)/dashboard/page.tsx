@@ -25,6 +25,7 @@ interface DashboardData {
   }
   totalEmAberto: number
   topCordas: { nome: string; count: number }[]
+  topClientes: { nome: string; telefone: string; faturamento: number; servicos: number }[]
   encordoamentosPorDia: { date: string; count: number }[]
   deliveryStats: { totalDelivery: number; totalRetirada: number }
   centroReceita: {
@@ -258,6 +259,53 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Ranking Clientes */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold text-gray-800 font-heading">Ranking de Clientes</h2>
+          <p className="text-xs text-gray-400">Top 10 por faturamento</p>
+        </div>
+        {data.topClientes.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">Nenhum dado ainda</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 pr-2 text-xs text-gray-400 font-medium w-8">#</th>
+                  <th className="text-left py-2 text-xs text-gray-400 font-medium">Cliente</th>
+                  <th className="text-center py-2 text-xs text-gray-400 font-medium">Serv.</th>
+                  <th className="text-right py-2 text-xs text-gray-400 font-medium">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.topClientes.map((c, i) => (
+                  <tr key={i} className="border-b border-gray-50 last:border-0">
+                    <td className="py-2.5 pr-2">
+                      {i < 3 ? (
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                          i === 0 ? 'bg-yellow-400' : i === 1 ? 'bg-gray-400' : 'bg-amber-600'
+                        }`}>{i + 1}</span>
+                      ) : (
+                        <span className="text-xs text-gray-400 pl-1.5">{i + 1}</span>
+                      )}
+                    </td>
+                    <td className="py-2.5">
+                      <p className="font-medium text-gray-800">{c.nome}</p>
+                      <p className="text-xs text-gray-400">{c.telefone}</p>
+                    </td>
+                    <td className="py-2.5 text-center">
+                      <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{c.servicos}</span>
+                    </td>
+                    <td className="py-2.5 text-right font-semibold text-emerald-600">{formatCurrency(c.faturamento)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Bottom Stats */}

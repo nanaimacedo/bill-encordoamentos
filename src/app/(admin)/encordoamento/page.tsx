@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
-import { Search, RotateCcw, Check, Plus, Truck, Package, X, ChevronDown, Paintbrush } from 'lucide-react'
+import { Search, RotateCcw, Check, Plus, Truck, Package, X, ChevronDown, Paintbrush, Sparkles, Shield, Circle, Grip, Disc, Wrench } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 
@@ -33,16 +33,59 @@ interface LastEncordoamento {
 
 const TENSOES_MAIN = [48, 50, 52, 53, 54, 55, 56, 57, 58, 60, 62]
 
-const SERVICOS_EXTRAS = [
-  { id: 'overgrip', nome: 'Overgrip', preco: 15, icon: '🎾' },
-  { id: 'grip', nome: 'Grip Base', preco: 25, icon: '✋' },
-  { id: 'antivibrador', nome: 'Antivibrador', preco: 10, icon: '🔇' },
-  { id: 'pintar_logo', nome: 'Pintar Logo', preco: 20, icon: '🎨' },
-  { id: 'limpeza', nome: 'Limpeza Raquete', preco: 15, icon: '✨' },
-  { id: 'protecao', nome: 'Proteção Cabeça', preco: 12, icon: '🛡️' },
-  { id: 'bumper', nome: 'Bumper Guard', preco: 18, icon: '🔧' },
-  { id: 'peso', nome: 'Ajuste de Peso', preco: 30, icon: '⚖️' },
+// Serviços simples (sem variações de marca)
+const SERVICOS_SIMPLES: { id: string; nome: string; preco: number; iconKey: string }[] = [
+  { id: 'pintar_logo', nome: 'Pintar Logo', preco: 0, iconKey: 'paintbrush' },
+  { id: 'limpeza', nome: 'Limpeza Raquete', preco: 0, iconKey: 'sparkles' },
 ]
+
+// Serviços com variações de marca (abre sub-menu)
+const SERVICOS_COM_MARCA = [
+  {
+    id: 'overgrip', nome: 'Overgrip', iconKey: 'circle',
+    opcoes: [
+      { id: 'overgrip_wilson_pro', nome: 'Wilson Pro', preco: 15 },
+      { id: 'overgrip_babolat_vs', nome: 'Babolat VS Dry', preco: 18 },
+      { id: 'overgrip_yonex_supergrap', nome: 'Yonex Super Grap', preco: 16 },
+      { id: 'overgrip_head_xtreme', nome: 'Head Xtreme Soft', preco: 14 },
+    ],
+  },
+  {
+    id: 'antivibrador', nome: 'Antivibrador', iconKey: 'disc',
+    opcoes: [
+      { id: 'anti_wilson', nome: 'Wilson Shock Shield', preco: 12 },
+      { id: 'anti_babolat', nome: 'Babolat Custom Damp', preco: 15 },
+      { id: 'anti_head', nome: 'Head Djokovic', preco: 10 },
+    ],
+  },
+  {
+    id: 'cushion_grip', nome: 'Cushion Grip', iconKey: 'grip',
+    opcoes: [
+      { id: 'cushion_wilson', nome: 'Wilson Premium', preco: 30 },
+      { id: 'cushion_babolat', nome: 'Babolat Syntec Pro', preco: 35 },
+      { id: 'cushion_yonex', nome: 'Yonex Premium', preco: 28 },
+      { id: 'cushion_head', nome: 'Head Hydrosorb Pro', preco: 32 },
+    ],
+  },
+  {
+    id: 'fita_protetora', nome: 'Fita Protetora', iconKey: 'shield',
+    opcoes: [
+      { id: 'fita_wilson', nome: 'Wilson', preco: 12 },
+      { id: 'fita_head', nome: 'Head', preco: 10 },
+      { id: 'fita_babolat', nome: 'Babolat', preco: 14 },
+    ],
+  },
+]
+
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  paintbrush: Paintbrush,
+  sparkles: Sparkles,
+  shield: Shield,
+  circle: Circle,
+  grip: Grip,
+  disc: Disc,
+  wrench: Wrench,
+}
 
 export default function NovoEncordoamentoPageWrapper() {
   return (
@@ -67,6 +110,8 @@ function NovoEncordoamentoPage() {
   const [enderecoEntrega, setEnderecoEntrega] = useState('')
   const [taxaDelivery, setTaxaDelivery] = useState<number>(10)
   const [servicosExtras, setServicosExtras] = useState<Set<string>>(new Set())
+  const [menuAberto, setMenuAberto] = useState<string | null>(null)
+  const [selecoesComMarca, setSelecoesComMarca] = useState<Record<string, { id: string; nome: string; preco: number }>>({})
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [lastEnc, setLastEnc] = useState<LastEncordoamento | null>(null)
@@ -121,7 +166,7 @@ function NovoEncordoamentoPage() {
     if (corda) setPreco(corda.preco)
   }, [cordaSelecionada, cordas])
 
-  const toggleServico = (id: string) => {
+  const toggleServicoSimples = (id: string) => {
     setServicosExtras(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id); else next.add(id)
@@ -129,7 +174,22 @@ function NovoEncordoamentoPage() {
     })
   }
 
-  const totalExtras = SERVICOS_EXTRAS.filter(s => servicosExtras.has(s.id)).reduce((sum, s) => sum + s.preco, 0)
+  const selecionarOpcaoMarca = (categoriaId: string, opcao: { id: string; nome: string; preco: number }) => {
+    setSelecoesComMarca(prev => ({ ...prev, [categoriaId]: opcao }))
+    setMenuAberto(null)
+  }
+
+  const removerMarca = (categoriaId: string) => {
+    setSelecoesComMarca(prev => {
+      const next = { ...prev }
+      delete next[categoriaId]
+      return next
+    })
+  }
+
+  const totalSimples = SERVICOS_SIMPLES.filter(s => servicosExtras.has(s.id)).reduce((sum, s) => sum + s.preco, 0)
+  const totalMarca = Object.values(selecoesComMarca).reduce((sum, s) => sum + s.preco, 0)
+  const totalExtras = totalSimples + totalMarca
   const precoServico = preco
   const precoDelivery = entrega === 'delivery' ? taxaDelivery : 0
   const precoTotal = precoServico + totalExtras + precoDelivery
@@ -157,6 +217,8 @@ function NovoEncordoamentoPage() {
     setEntrega('retirada')
     setEnderecoEntrega('')
     setServicosExtras(new Set())
+    setSelecoesComMarca({})
+    setMenuAberto(null)
     setBusca('')
     setLastEnc(null)
   }
@@ -164,7 +226,12 @@ function NovoEncordoamentoPage() {
   const salvar = async () => {
     if (!clienteSelecionado || !cordaSelecionada) return
     setSalvando(true)
-    const extras = SERVICOS_EXTRAS.filter(s => servicosExtras.has(s.id)).map(s => s.nome).join(', ')
+    const extrasSimples = SERVICOS_SIMPLES.filter(s => servicosExtras.has(s.id)).map(s => s.nome)
+    const extrasComMarca = Object.entries(selecoesComMarca).map(([cat, opt]) => {
+      const categoria = SERVICOS_COM_MARCA.find(s => s.id === cat)
+      return `${categoria?.nome}: ${opt.nome}`
+    })
+    const extras = [...extrasSimples, ...extrasComMarca].join(', ')
     try {
       const res = await fetch('/api/encordoamentos', {
         method: 'POST',
@@ -322,23 +389,82 @@ function NovoEncordoamentoPage() {
                 </div>
               </div>
 
-              {/* SEÇÃO: Serviços Extras (Badges) */}
+              {/* SEÇÃO: Serviços Inclusos */}
               <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Serviços Extras</p>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Serviços Inclusos</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {SERVICOS_EXTRAS.map(s => (
-                    <button key={s.id} onClick={() => toggleServico(s.id)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                        servicosExtras.has(s.id)
-                          ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
-                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      <span className="text-base">{s.icon}</span>
-                      <span className="flex-1 text-left">{s.nome}</span>
-                      <span className="text-xs opacity-70">{formatCurrency(s.preco)}</span>
-                    </button>
-                  ))}
+                  {SERVICOS_SIMPLES.map(s => {
+                    const Icon = ICON_MAP[s.iconKey] || Circle
+                    return (
+                      <button key={s.id} onClick={() => toggleServicoSimples(s.id)}
+                        className={`flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-all border ${
+                          servicosExtras.has(s.id)
+                            ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <span className="flex-1 text-left">{s.nome}</span>
+                        {servicosExtras.has(s.id) && <Check className="w-4 h-4 text-emerald-600" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* SEÇÃO: Acessórios (com marcas) */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Acessórios</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {SERVICOS_COM_MARCA.map(cat => {
+                    const Icon = ICON_MAP[cat.iconKey] || Circle
+                    const selecionado = selecoesComMarca[cat.id]
+                    return (
+                      <div key={cat.id} className="relative">
+                        <button
+                          onClick={() => setMenuAberto(menuAberto === cat.id ? null : cat.id)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-all border ${
+                            selecionado
+                              ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
+                              : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 flex-shrink-0" />
+                          <span className="flex-1 text-left">
+                            {cat.nome}
+                            {selecionado && (
+                              <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                                {selecionado.nome} · {formatCurrency(selecionado.preco)}
+                              </span>
+                            )}
+                          </span>
+                          {selecionado ? (
+                            <button onClick={(e) => { e.stopPropagation(); removerMarca(cat.id) }}
+                              className="p-1 rounded-full hover:bg-emerald-200 transition-colors">
+                              <X className="w-3 h-3" />
+                            </button>
+                          ) : (
+                            <ChevronDown className={`w-4 h-4 transition-transform ${menuAberto === cat.id ? 'rotate-180' : ''}`} />
+                          )}
+                        </button>
+
+                        {/* Dropdown de marcas */}
+                        {menuAberto === cat.id && !selecionado && (
+                          <div className="mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-10 relative animate-fadeIn">
+                            {cat.opcoes.map(opt => (
+                              <button key={opt.id}
+                                onClick={() => selecionarOpcaoMarca(cat.id, opt)}
+                                className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-emerald-50 transition-colors border-b border-gray-50 last:border-0"
+                              >
+                                <span className="text-gray-700 font-medium">{opt.nome}</span>
+                                <span className="text-emerald-600 font-semibold text-xs">{formatCurrency(opt.preco)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -392,24 +518,33 @@ function NovoEncordoamentoPage() {
             {/* Footer - Resumo + Salvar */}
             <div className="p-5 border-t border-gray-100 space-y-3">
               {/* Resumo de preço */}
-              <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-sm">
+              <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm">
                 <div className="flex justify-between text-gray-600">
-                  <span>Encordoamento</span>
+                  <span>Encordoamento {cordaSel ? `(${cordaSel.nome})` : ''}</span>
                   <span>{formatCurrency(precoServico)}</span>
                 </div>
-                {totalExtras > 0 && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Extras ({servicosExtras.size})</span>
-                    <span>+{formatCurrency(totalExtras)}</span>
+                {SERVICOS_SIMPLES.filter(s => servicosExtras.has(s.id)).map(s => (
+                  <div key={s.id} className="flex justify-between text-gray-500 text-xs">
+                    <span>{s.nome}</span>
+                    <span className="text-emerald-600">incluso</span>
                   </div>
-                )}
+                ))}
+                {Object.entries(selecoesComMarca).map(([catId, opt]) => {
+                  const cat = SERVICOS_COM_MARCA.find(c => c.id === catId)
+                  return (
+                    <div key={catId} className="flex justify-between text-gray-600">
+                      <span>{cat?.nome}: <span className="text-gray-500">{opt.nome}</span></span>
+                      <span>+{formatCurrency(opt.preco)}</span>
+                    </div>
+                  )
+                })}
                 {precoDelivery > 0 && (
                   <div className="flex justify-between text-orange-600">
                     <span>Delivery</span>
                     <span>+{formatCurrency(precoDelivery)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-gray-900 text-base pt-1 border-t border-gray-200">
+                <div className="flex justify-between font-bold text-gray-900 text-base pt-1.5 border-t border-gray-200">
                   <span>Total</span>
                   <span className="text-emerald-600">{formatCurrency(precoTotal)}</span>
                 </div>

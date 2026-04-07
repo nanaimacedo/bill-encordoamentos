@@ -138,12 +138,38 @@ export async function GET() {
       }),
     ])
 
+    // Top clientes (ranking por faturamento)
+    const topClientesData = await prisma.pagamento.groupBy({
+      by: ['clienteId'],
+      where: { status: 'pago' },
+      _sum: { valor: true },
+      _count: { id: true },
+      orderBy: { _sum: { valor: 'desc' } },
+      take: 10,
+    })
+
+    const topClientes = await Promise.all(
+      topClientesData.map(async (item) => {
+        const cliente = await prisma.cliente.findUnique({
+          where: { id: item.clienteId },
+          select: { nome: true, telefone: true },
+        })
+        return {
+          nome: cliente?.nome || 'Desconhecido',
+          telefone: cliente?.telefone || '',
+          faturamento: Number(item._sum.valor || 0),
+          servicos: item._count.id,
+        }
+      })
+    )
+
     return Response.json({
       totalEncordoamentos,
       faturamento,
       ticketMedio,
       totalEmAberto,
       topCordas: topCordasComNome,
+      topClientes,
       encordoamentosPorDia,
       deliveryStats: {
         totalDelivery,
