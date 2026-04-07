@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Clock, DollarSign, Package, Truck, RotateCcw, Check } from 'lucide-react'
+import { Clock, DollarSign, Package, Truck, RotateCcw, Check, Star } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 interface ClientePortal {
@@ -44,6 +44,7 @@ export default function PortalClientePage() {
   const [error, setError] = useState('')
   const [solicitando, setSolicitando] = useState<string | null>(null)
   const [solicitado, setSolicitado] = useState<Set<string>>(new Set())
+  const [fidelidade, setFidelidade] = useState<{pontosFidelidade: number, totalEncordoamentos: number, eligibleForFree: boolean} | null>(null)
 
   const buscar = async () => {
     if (!telefone.trim()) return
@@ -57,7 +58,9 @@ export default function PortalClientePage() {
         setCliente(null)
       } else {
         const detailRes = await fetch(`/api/clientes/${data[0].id}`)
-        setCliente(await detailRes.json())
+        const clienteData = await detailRes.json()
+        setCliente(clienteData)
+        fetch(`/api/fidelidade/${clienteData.id}`).then(r => r.json()).then(setFidelidade).catch(() => {})
       }
     } catch {
       setError('Erro ao buscar')
@@ -160,6 +163,33 @@ export default function PortalClientePage() {
                 </button>
               </div>
             </div>
+
+            {/* Fidelidade */}
+            {fidelidade && (
+              <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star className="w-5 h-5 text-emerald-600" />
+                  <span className="font-semibold text-emerald-700 text-sm">Programa Fidelidade</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="h-2 bg-emerald-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${(fidelidade.totalEncordoamentos % 10) * 10}%` }} />
+                    </div>
+                    <p className="text-xs text-emerald-600 mt-1">{fidelidade.totalEncordoamentos % 10}/10 para grátis</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-emerald-700">{fidelidade.pontosFidelidade}</p>
+                    <p className="text-xs text-emerald-600">pontos</p>
+                  </div>
+                </div>
+                {fidelidade.eligibleForFree && (
+                  <p className="text-sm font-bold text-emerald-700 mt-2 bg-emerald-100 rounded-lg p-2 text-center">
+                    Parabéns! Você tem direito a um encordoamento grátis!
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Pronto para retirada/delivery */}
             {encProntos.length > 0 && (
