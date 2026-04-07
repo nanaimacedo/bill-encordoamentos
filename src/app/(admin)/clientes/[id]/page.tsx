@@ -65,7 +65,7 @@ export default function ClienteDetailPage() {
   const [raqueteForm, setRaqueteForm] = useState({ marca: '', modelo: '' })
   const [raqueteQr, setRaqueteQr] = useState<{ img: string; marca: string; modelo: string } | null>(null)
   const [showEditCliente, setShowEditCliente] = useState(false)
-  const [editForm, setEditForm] = useState({ nome: '', telefone: '', condominio: '', apartamento: '' })
+  const [editForm, setEditForm] = useState({ nome: '', telefone: '', condominio: '', apartamento: '', centroReceita: 'cooper' })
 
   const carregar = () => {
     if (!params.id) return
@@ -122,6 +122,7 @@ export default function ClienteDetailPage() {
       telefone: cliente.telefone,
       condominio: cliente.condominio || '',
       apartamento: cliente.apartamento || '',
+      centroReceita: (cliente as any).centroReceita || 'cooper',
     })
     setShowEditCliente(true)
   }
@@ -414,6 +415,23 @@ export default function ClienteDetailPage() {
               onChange={e => setEditForm(p => ({ ...p, apartamento: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
             />
+            <div>
+              <p className="text-xs text-gray-500 mb-1.5">Local</p>
+              <div className="flex flex-wrap gap-1.5">
+                {['Cooper', 'Leal', 'Vitallis', 'CPB', 'Lorian', 'Tenis Ranch', 'Delivery', 'Torneio'].map(local => (
+                  <button key={local} type="button"
+                    onClick={() => setEditForm(p => ({ ...p, centroReceita: local.toLowerCase() }))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                      editForm.centroReceita === local.toLowerCase()
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {local}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2">
               <button onClick={() => setShowEditCliente(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Cancelar</button>
               <button onClick={salvarEditCliente} className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700">Salvar</button>
