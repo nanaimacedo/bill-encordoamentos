@@ -47,12 +47,8 @@ export default function Sidebar() {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-r md:border-border md:bg-white">
         {/* Brand */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-          <Logo size={36} />
-          <div className="leading-tight">
-            <h1 className="text-sm font-bold text-foreground font-heading tracking-tight">ENCORDOAMENTO</h1>
-            <p className="text-sm font-black text-amber-500 italic tracking-tight">PROFISSIONAL</p>
-          </div>
+        <div className="flex items-center justify-center px-5 py-4 border-b border-border">
+          <img src="/logo.jpeg" alt="Bill Encordoamento Profissional" className="h-12 object-contain" />
         </div>
 
         {/* Navigation */}
