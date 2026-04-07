@@ -81,18 +81,18 @@ export default function ClientesPage() {
         />
       </div>
 
-      <div className="flex gap-2">
-        {['todos', 'loja', 'delivery'].map(f => (
+      <div className="flex gap-1.5 flex-wrap">
+        {['todos', 'cooper', 'leal', 'vitallis', 'cpb', 'lorian', 'tenis ranch', 'delivery', 'torneio'].map(f => (
           <button
             key={f}
             onClick={() => { setFiltroTipo(f); setPagina(1) }}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               filtroTipo === f
-                ? 'bg-green-600 text-white'
+                ? 'bg-emerald-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {f === 'todos' ? 'Todos' : f === 'loja' ? 'Loja' : 'Delivery'}
+            {f === 'todos' ? 'Todos' : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
       </div>
@@ -129,9 +129,15 @@ export default function ClientesPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-gray-800 text-sm">{c.nome}</p>
-                        <span className="text-xs bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full">
-                          {c.centroReceita === 'delivery' ? 'Delivery' : 'Loja'}
-                        </span>
+                        {c.centroReceita && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                            c.centroReceita === 'delivery' ? 'bg-orange-50 text-orange-600' :
+                            c.centroReceita === 'torneio' ? 'bg-purple-50 text-purple-600' :
+                            'bg-emerald-50 text-emerald-600'
+                          }`}>
+                            {c.centroReceita.charAt(0).toUpperCase() + c.centroReceita.slice(1)}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500">{c.telefone}</p>
                       {c.condominio && (
@@ -199,14 +205,23 @@ export default function ClientesPage() {
               onChange={e => setForm(p => ({ ...p, apartamento: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
             />
-            <select
-              value={form.centroReceita || 'loja'}
-              onChange={e => setForm(p => ({ ...p, centroReceita: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="loja">Loja (Clube)</option>
-              <option value="delivery">Delivery</option>
-            </select>
+            <div>
+              <p className="text-xs text-gray-500 mb-1.5">Local</p>
+              <div className="flex flex-wrap gap-1.5">
+                {['Cooper', 'Leal', 'Vitallis', 'CPB', 'Lorian', 'Tenis Ranch', 'Delivery', 'Torneio'].map(local => (
+                  <button key={local} type="button"
+                    onClick={() => setForm(p => ({ ...p, centroReceita: local.toLowerCase() }))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                      form.centroReceita === local.toLowerCase()
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {local}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowForm(false)}

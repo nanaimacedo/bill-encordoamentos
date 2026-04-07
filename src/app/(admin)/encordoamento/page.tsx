@@ -267,7 +267,7 @@ function NovoEncordoamentoPage() {
           entrega,
           enderecoEntrega: entrega === 'delivery' ? enderecoEntrega : '',
           taxaDelivery: precoDelivery,
-          centroReceita: entrega === 'delivery' ? 'delivery' : 'loja',
+          centroReceita: entrega === 'delivery' ? 'delivery' : (clienteSelecionado as any).centroReceita || 'loja',
         }),
       })
       if (res.ok) {
