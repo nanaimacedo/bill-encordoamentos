@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Cliente {
+  id            String   @id @default(cuid())
+  nome          String
+  telefone      String
+  condominio    String?
+  apartamento   String?
+  email         String?
+  qrCode        String?  @unique
+  dataNascimento DateTime?
+  pontosFidelidade Int    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  encordoamentos Encordoamento[]
+  pagamentos     Pagamento[]
+  mensagens      Mensagem[]
+  raquetes       Raquete[]
+  notificacoes   Notificacao[]
+  carrinho       ItemCarrinho[]
+  pedidos        Pedido[]
+  perfil         PerfilJogador?
+  avaliacoes     Avaliacao[]
+}
+
+model Raquete {
+  id         String   @id @default(cuid())
+  clienteId  String
+  marca      String
+  modelo     String
+  qrCode     String   @unique
+  createdAt  DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+}
+
+model Corda {
+  id          String   @id @default(cuid())
+  nome        String
+  marca       String
+  tipo        String
+  calibre     String
+  preco       Float
+  descricao   String   @default("")
+  beneficios  String   @default("")
+  estoque     Int      @default(0)
+  ativa       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  encordoamentos Encordoamento[]
+  avaliacoes     Avaliacao[]
+}
+
+model Produto {
+  id          String   @id @default(cuid())
+  nome        String
+  categoria   String
+  preco       Float
+  descricao   String   @default("")
+  beneficios  String   @default("")
+  estoque     Int      @default(0)
+  ativo       Boolean  @default(true)
+  imagem      String   @default("")
+  createdAt   DateTime @default(now())
+
+  itensCarrinho ItemCarrinho[]
+  itensPedido   ItemPedido[]
+}
+
+model Encordoamento {
+  id              String   @id @default(cuid())
+  clienteId       String
+  cordaId         String
+  tensao          Float
+  tensaoCross     Float?
+  tipo            String   @default("padrao")
+  preco           Float
+  status          String   @default("pendente")
+  entrega         String   @default("retirada")
+  enderecoEntrega String   @default("")
+  taxaDelivery    Float    @default(0)
+  observacoes     String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cliente   Cliente    @relation(fields: [clienteId], references: [id])
+  corda     Corda      @relation(fields: [cordaId], references: [id])
+  pagamento Pagamento?
+}
+
+model Pagamento {
+  id              String    @id @default(cuid())
+  clienteId       String
+  encordoamentoId String?   @unique
+  pedidoId        String?   @unique
+  valor           Float
+  status          String    @default("pendente")
+  formaPagamento  String    @default("")
+  dataPagamento   DateTime?
+  createdAt       DateTime  @default(now())
+
+  cliente       Cliente        @relation(fields: [clienteId], references: [id])
+  encordoamento Encordoamento? @relation(fields: [encordoamentoId], references: [id])
+  pedido        Pedido?        @relation(fields: [pedidoId], references: [id])
+}
+
+model Mensagem {
+  id        String   @id @default(cuid())
+  clienteId String?
+  autor     String
+  conteudo  String
+  canal     String   @default("geral")
+  createdAt DateTime @default(now())
+
+  cliente Cliente? @relation(fields: [clienteId], references: [id])
+}
+
+model ConteudoEducativo {
+  id        String   @id @default(cuid())
+  titulo    String
+  categoria String
+  conteudo  String
+  resumo    String   @default("")
+  createdAt DateTime @default(now())
+}
+
+// ===== FASE 4: AUTOMAÇÕES =====
+
+model Notificacao {
+  id        String   @id @default(cuid())
+  clienteId String
+  tipo      String   // lembrete_troca, debito_pendente, encordoamento_pronto, aniversario
+  titulo    String
+  mensagem  String
+  lida      Boolean  @default(false)
+  enviada   Boolean  @default(false)
+  canal     String   @default("sistema") // sistema, whatsapp, sms
+  createdAt DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+}
+
+model ConfigAutomacao {
+  id                String  @id @default(cuid())
+  diasLembreteTroca Int     @default(30)
+  diasAvisoDebito   Int     @default(7)
+  msgLembreteTroca  String  @default("Olá {nome}! Já faz {dias} dias desde seu último encordoamento. Que tal trocar?")
+  msgDebitoPendente String  @default("Olá {nome}, você tem um débito pendente de {valor}. Regularize na loja!")
+  msgPronto         String  @default("Olá {nome}! Seu encordoamento está pronto para retirada!")
+  msgAniversario    String  @default("Feliz aniversário, {nome}! Ganhe 10% de desconto no seu próximo encordoamento!")
+  ativo             Boolean @default(true)
+}
+
+// ===== FASE 5: MARKETPLACE =====
+
+model ItemCarrinho {
+  id        String   @id @default(cuid())
+  clienteId String
+  produtoId String
+  quantidade Int     @default(1)
+  createdAt DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@unique([clienteId, produtoId])
+}
+
+model Pedido {
+  id              String   @id @default(cuid())
+  clienteId       String
+  status          String   @default("pendente") // pendente, confirmado, enviado, entregue, cancelado
+  total           Float
+  entrega         String   @default("retirada") // retirada, delivery
+  enderecoEntrega String   @default("")
+  taxaDelivery    Float    @default(0)
+  cupomId         String?
+  desconto        Float    @default(0)
+  observacoes     String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cliente   Cliente      @relation(fields: [clienteId], references: [id])
+  cupom     Cupom?       @relation(fields: [cupomId], references: [id])
+  itens     ItemPedido[]
+  pagamento Pagamento?
+}
+
+model ItemPedido {
+  id        String @id @default(cuid())
+  pedidoId  String
+  produtoId String
+  quantidade Int
+  precoUnit Float
+
+  pedido  Pedido  @relation(fields: [pedidoId], references: [id])
+  produto Produto @relation(fields: [produtoId], references: [id])
+}
+
+model Cupom {
+  id            String   @id @default(cuid())
+  codigo        String   @unique
+  descricao     String   @default("")
+  tipo          String   // percentual, fixo
+  valor         Float    // 10 = 10% ou R$10
+  minimo        Float    @default(0)
+  usos          Int      @default(0)
+  maxUsos       Int      @default(100)
+  ativo         Boolean  @default(true)
+  validade      DateTime?
+  createdAt     DateTime @default(now())
+
+  pedidos Pedido[]
+}
+
+// ===== FASE 6: COMUNIDADE AVANÇADA =====
+
+model PerfilJogador {
+  id            String   @id @default(cuid())
+  clienteId     String   @unique
+  nivel         String   @default("iniciante") // iniciante, intermediario, avancado, profissional
+  estiloJogo    String   @default("") // agressivo, defensivo, all-court
+  maoHabil      String   @default("direita") // direita, esquerda, ambidestro
+  disponibilidade String @default("") // JSON: dias/horarios preferidos
+  regiao        String   @default("")
+  bio           String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cliente    Cliente         @relation(fields: [clienteId], references: [id])
+  convites   ConviteJogo[]   @relation("ConviteRemetente")
+  recebidos  ConviteJogo[]   @relation("ConviteDestinatario")
+}
+
+model ConviteJogo {
+  id              String   @id @default(cuid())
+  remetenteId     String
+  destinatarioId  String
+  data            DateTime
+  local           String
+  mensagem        String   @default("")
+  status          String   @default("pendente") // pendente, aceito, recusado
+  createdAt       DateTime @default(now())
+
+  remetente    PerfilJogador @relation("ConviteRemetente", fields: [remetenteId], references: [id])
+  destinatario PerfilJogador @relation("ConviteDestinatario", fields: [destinatarioId], references: [id])
+}
+
+model Evento {
+  id        String   @id @default(cuid())
+  titulo    String
+  descricao String   @default("")
+  tipo      String   // torneio, social, aula, evento
+  data      DateTime
+  local     String
+  vagas     Int      @default(0)
+  inscritos Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Avaliacao {
+  id        String   @id @default(cuid())
+  clienteId String
+  cordaId   String
+  nota      Int      // 1-5
+  comentario String  @default("")
+  createdAt DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  corda   Corda   @relation(fields: [cordaId], references: [id])
+
+  @@unique([clienteId, cordaId])
+}

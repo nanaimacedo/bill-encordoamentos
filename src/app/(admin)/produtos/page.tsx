@@ -1,0 +1,207 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Plus, Package, Edit2, Trash2 } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
+
+interface Corda {
+  id: string
+  nome: string
+  marca: string
+  tipo: string
+  calibre: string
+  preco: number
+  descricao: string
+  beneficios: string
+  estoque: number
+}
+
+interface Produto {
+  id: string
+  nome: string
+  categoria: string
+  preco: number
+  descricao: string
+  beneficios: string
+  estoque: number
+}
+
+type Tab = 'cordas' | 'produtos'
+
+export default function ProdutosPage() {
+  const [tab, setTab] = useState<Tab>('cordas')
+  const [cordas, setCordas] = useState<Corda[]>([])
+  const [produtos, setProdutos] = useState<Produto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [formCorda, setFormCorda] = useState({
+    nome: '', marca: '', tipo: 'monofilamento', calibre: '1.25', preco: 0, descricao: '', beneficios: '', estoque: 10
+  })
+  const [formProduto, setFormProduto] = useState({
+    nome: '', categoria: 'grip', preco: 0, descricao: '', beneficios: '', estoque: 10
+  })
+
+  const carregarCordas = async () => {
+    const res = await fetch('/api/cordas')
+    setCordas(await res.json())
+  }
+  const carregarProdutos = async () => {
+    const res = await fetch('/api/produtos')
+    setProdutos(await res.json())
+  }
+
+  useEffect(() => {
+    Promise.all([carregarCordas(), carregarProdutos()]).finally(() => setLoading(false))
+  }, [])
+
+  const salvarCorda = async () => {
+    await fetch('/api/cordas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formCorda),
+    })
+    setShowForm(false)
+    setFormCorda({ nome: '', marca: '', tipo: 'monofilamento', calibre: '1.25', preco: 0, descricao: '', beneficios: '', estoque: 10 })
+    carregarCordas()
+  }
+
+  const salvarProduto = async () => {
+    await fetch('/api/produtos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formProduto),
+    })
+    setShowForm(false)
+    setFormProduto({ nome: '', categoria: 'grip', preco: 0, descricao: '', beneficios: '', estoque: 10 })
+    carregarProdutos()
+  }
+
+  const tipoLabels: Record<string, string> = {
+    monofilamento: 'Mono', multifilamento: 'Multi', natural: 'Natural', hibrida: 'Híbrida'
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-800">Catálogo</h1>
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+        >
+          <Plus className="w-4 h-4" /> {tab === 'cordas' ? 'Nova Corda' : 'Novo Produto'}
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setTab('cordas')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cordas' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+        >
+          Cordas ({cordas.length})
+        </button>
+        <button
+          onClick={() => setTab('produtos')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'produtos' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+        >
+          Produtos ({produtos.length})
+        </button>
+      </div>
+
+      {/* Cordas */}
+      {tab === 'cordas' && (
+        <div className="space-y-2">
+          {cordas.map(c => (
+            <div key={c.id} className="bg-white rounded-xl p-4 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm text-gray-800">{c.nome}</span>
+                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{tipoLabels[c.tipo] || c.tipo}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">{c.marca} - {c.calibre}mm</p>
+                  {c.descricao && <p className="text-xs text-gray-400 mt-1">{c.descricao}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-green-600">{formatCurrency(c.preco)}</p>
+                  <p className="text-xs text-gray-400">Estoque: {c.estoque}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Produtos */}
+      {tab === 'produtos' && (
+        <div className="space-y-2">
+          {produtos.length === 0 && <p className="text-center text-gray-400 py-8 text-sm">Nenhum produto cadastrado</p>}
+          {produtos.map(p => (
+            <div key={p.id} className="bg-white rounded-xl p-4 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm text-gray-800">{p.nome}</span>
+                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full uppercase">{p.categoria}</span>
+                  </div>
+                  {p.descricao && <p className="text-xs text-gray-400 mt-1">{p.descricao}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-green-600">{formatCurrency(p.preco)}</p>
+                  <p className="text-xs text-gray-400">Estoque: {p.estoque}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal Form */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-3 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-gray-800">
+              {tab === 'cordas' ? 'Nova Corda' : 'Novo Produto'}
+            </h3>
+
+            {tab === 'cordas' ? (
+              <>
+                <input placeholder="Nome *" value={formCorda.nome} onChange={e => setFormCorda(p => ({ ...p, nome: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
+                <input placeholder="Marca *" value={formCorda.marca} onChange={e => setFormCorda(p => ({ ...p, marca: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
+                <select value={formCorda.tipo} onChange={e => setFormCorda(p => ({ ...p, tipo: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500">
+                  <option value="monofilamento">Monofilamento</option>
+                  <option value="multifilamento">Multifilamento</option>
+                  <option value="natural">Natural</option>
+                  <option value="hibrida">Híbrida</option>
+                </select>
+                <input placeholder="Calibre (ex: 1.25)" value={formCorda.calibre} onChange={e => setFormCorda(p => ({ ...p, calibre: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
+                <input type="number" placeholder="Preço" value={formCorda.preco || ''} onChange={e => setFormCorda(p => ({ ...p, preco: Number(e.target.value) }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
+                <textarea placeholder="Descrição" value={formCorda.descricao} onChange={e => setFormCorda(p => ({ ...p, descricao: e.target.value }))} rows={2} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+                <textarea placeholder="Benefícios" value={formCorda.beneficios} onChange={e => setFormCorda(p => ({ ...p, beneficios: e.target.value }))} rows={2} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+                <input type="number" placeholder="Estoque" value={formCorda.estoque} onChange={e => setFormCorda(p => ({ ...p, estoque: Number(e.target.value) }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
+              </>
+            ) : (
+              <>
+                <input placeholder="Nome *" value={formProduto.nome} onChange={e => setFormProduto(p => ({ ...p, nome: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
+                <select value={formProduto.categoria} onChange={e => setFormProduto(p => ({ ...p, categoria: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500">
+                  <option value="grip">Grip</option>
+                  <option value="overgrip">Overgrip</option>
+                  <option value="acessorio">Acessório</option>
+                  <option value="raquete">Raquete</option>
+                </select>
+                <input type="number" placeholder="Preço" value={formProduto.preco || ''} onChange={e => setFormProduto(p => ({ ...p, preco: Number(e.target.value) }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
+                <textarea placeholder="Descrição" value={formProduto.descricao} onChange={e => setFormProduto(p => ({ ...p, descricao: e.target.value }))} rows={2} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+                <input type="number" placeholder="Estoque" value={formProduto.estoque} onChange={e => setFormProduto(p => ({ ...p, estoque: Number(e.target.value) }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
+              </>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Cancelar</button>
+              <button onClick={tab === 'cordas' ? salvarCorda : salvarProduto} className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700">Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
