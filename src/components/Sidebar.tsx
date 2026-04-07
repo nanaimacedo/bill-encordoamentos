@@ -14,6 +14,7 @@ import {
   Bell,
   ShoppingBag,
   Brain,
+  MapPin,
 } from "lucide-react";
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/financeiro", label: "Financeiro", icon: DollarSign },
   { href: "/produtos", label: "Catálogo", icon: Package },
   { href: "/automacoes", label: "Automações", icon: Bell },
+  { href: "/localizacao", label: "Localização", icon: MapPin },
   { href: "/loja", label: "Loja/Pedidos", icon: ShoppingBag },
   { href: "/comunidade", label: "Comunidade", icon: MessageCircle },
   { href: "/comunidade/perfis", label: "Jogadores", icon: Users },

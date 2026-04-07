@@ -29,6 +29,7 @@ model Cliente {
   pedidos        Pedido[]
   perfil         PerfilJogador?
   avaliacoes     Avaliacao[]
+  pushSubscriptions PushSubscription[]
 }
 
 model Raquete {
@@ -158,6 +159,30 @@ model ConfigAutomacao {
   msgPronto         String  @default("Olá {nome}! Seu encordoamento está pronto para retirada!")
   msgAniversario    String  @default("Feliz aniversário, {nome}! Ganhe 10% de desconto no seu próximo encordoamento!")
   ativo             Boolean @default(true)
+}
+
+// ===== GEOLOCALIZAÇÃO + PUSH =====
+
+model Local {
+  id        String  @id @default(cuid())
+  nome      String  @unique // ex: "Lorian", "CPB", "Riviera"
+  endereco  String  @default("")
+  latitude  Float
+  longitude Float
+  raio      Int     @default(500) // raio em metros para geofencing
+  ativo     Boolean @default(true)
+  createdAt DateTime @default(now())
+}
+
+model PushSubscription {
+  id         String  @id @default(cuid())
+  clienteId  String
+  endpoint   String
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
 }
 
 // ===== FASE 5: MARKETPLACE =====
