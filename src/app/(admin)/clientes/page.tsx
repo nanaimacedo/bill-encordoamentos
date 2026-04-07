@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Search, Plus, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/Toast'
 
 interface Cliente {
   id: string
@@ -10,6 +11,7 @@ interface Cliente {
   telefone: string
   condominio: string | null
   apartamento: string | null
+  centroReceita: string | null
   _count?: { encordoamentos: number }
 }
 
@@ -18,7 +20,10 @@ export default function ClientesPage() {
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [filtroTipo, setFiltroTipo] = useState('todos')
+  const [pagina, setPagina] = useState(1)
   const [form, setForm] = useState({ nome: '', telefone: '', condominio: '', apartamento: '', centroReceita: 'loja' })
+  const { toast } = useToast()
 
   const carregar = async (q = '') => {
     setLoading(true)
@@ -37,15 +42,19 @@ export default function ClientesPage() {
 
   const salvar = async () => {
     if (!form.nome || !form.telefone) return
-    const res = await fetch('/api/clientes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/clientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error('Falha ao salvar')
+      toast({ title: 'Cliente cadastrado!', type: 'success' })
       setShowForm(false)
       setForm({ nome: '', telefone: '', condominio: '', apartamento: '', centroReceita: 'loja' })
       carregar(busca)
+    } catch {
+      toast({ title: 'Erro ao cadastrar cliente', type: 'error' })
     }
   }
 
@@ -72,6 +81,22 @@ export default function ClientesPage() {
         />
       </div>
 
+      <div className="flex gap-2">
+        {['todos', 'loja', 'delivery'].map(f => (
+          <button
+            key={f}
+            onClick={() => { setFiltroTipo(f); setPagina(1) }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              filtroTipo === f
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {f === 'todos' ? 'Todos' : f === 'loja' ? 'Loja' : 'Delivery'}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
@@ -80,25 +105,68 @@ export default function ClientesPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {clientes.length === 0 && (
-            <p className="text-center text-gray-400 py-8 text-sm">Nenhum cliente encontrado</p>
-          )}
-          {clientes.map(c => (
-            <Link
-              key={c.id}
-              href={`/clientes/${c.id}`}
-              className="bg-white rounded-xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border border-gray-100 block"
-            >
-              <div>
-                <p className="font-medium text-gray-800 text-sm">{c.nome}</p>
-                <p className="text-xs text-gray-500">{c.telefone}</p>
-                {c.condominio && (
-                  <p className="text-xs text-gray-400">{c.condominio} {c.apartamento && `- Apt ${c.apartamento}`}</p>
+          {(() => {
+            const filtrados = filtroTipo === 'todos'
+              ? clientes
+              : clientes.filter(c => c.centroReceita === filtroTipo)
+            const total = filtrados.length
+            const inicio = (pagina - 1) * 20
+            const fim = Math.min(inicio + 20, total)
+            const paginados = filtrados.slice(inicio, fim)
+            const totalPaginas = Math.ceil(total / 20)
+
+            return (
+              <>
+                {total === 0 && (
+                  <p className="text-center text-gray-400 py-8 text-sm">Nenhum cliente encontrado</p>
                 )}
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
-            </Link>
-          ))}
+                {paginados.map(c => (
+                  <Link
+                    key={c.id}
+                    href={`/clientes/${c.id}`}
+                    className="bg-white rounded-xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border border-gray-100 block"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-800 text-sm">{c.nome}</p>
+                        <span className="text-xs bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full">
+                          {c.centroReceita === 'delivery' ? 'Delivery' : 'Loja'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">{c.telefone}</p>
+                      {c.condominio && (
+                        <p className="text-xs text-gray-400">{c.condominio} {c.apartamento && `- Apt ${c.apartamento}`}</p>
+                      )}
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </Link>
+                ))}
+                {total > 0 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs text-gray-500">
+                      Mostrando {inicio + 1}-{fim} de {total}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPagina(p => Math.max(1, p - 1))}
+                        disabled={pagina === 1}
+                        className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                        disabled={pagina >= totalPaginas}
+                        className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                      >
+                        Próximo
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
 

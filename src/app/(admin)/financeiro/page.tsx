@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DollarSign, Check, Filter } from 'lucide-react'
+import { DollarSign, Check, Filter, Download } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { useToast } from '@/components/Toast'
 
 interface Pagamento {
   id: string
@@ -20,25 +21,51 @@ export default function FinanceiroPage() {
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState<'todos' | 'pendente' | 'pago'>('todos')
   const [centro, setCentro] = useState<'todos' | 'loja' | 'delivery'>('todos')
+  const { toast } = useToast()
 
   const carregar = async () => {
     setLoading(true)
-    const params = filtro !== 'todos' ? `?status=${filtro}` : ''
-    const res = await fetch(`/api/pagamentos${params}`)
-    const data = await res.json()
-    setPagamentos(data)
-    setLoading(false)
+    try {
+      const params = filtro !== 'todos' ? `?status=${filtro}` : ''
+      const res = await fetch(`/api/pagamentos${params}`)
+      const data = await res.json()
+      setPagamentos(data)
+    } catch {
+      toast({ title: 'Erro ao carregar pagamentos', type: 'error' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { carregar() }, [filtro])
 
   const marcarPago = async (id: string, forma: string) => {
-    await fetch(`/api/pagamentos/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'pago', formaPagamento: forma }),
-    })
-    carregar()
+    try {
+      const res = await fetch(`/api/pagamentos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'pago', formaPagamento: forma }),
+      })
+      if (!res.ok) throw new Error('Falha ao atualizar')
+      toast({ title: 'Pagamento confirmado!', type: 'success' })
+      carregar()
+    } catch {
+      toast({ title: 'Erro ao confirmar pagamento', type: 'error' })
+    }
+  }
+
+  const exportarCSV = () => {
+    const headers = 'Data,Cliente,Servico,Valor,Status,Forma Pagamento,Centro\n'
+    const rows = pagamentosFiltrados.map(p =>
+      `${formatDate(p.createdAt)},"${p.cliente.nome}",${p.encordoamento?.corda?.nome || 'N/A'},${p.valor},${p.status},${p.formaPagamento || 'N/A'},${p.encordoamento?.centroReceita || 'N/A'}`
+    ).join('\n')
+    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `financeiro_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const pagamentosFiltrados = centro === 'todos'
@@ -86,8 +113,8 @@ export default function FinanceiroPage() {
         ))}
       </div>
 
-      {/* Filtro Centro de Receita */}
-      <div className="flex gap-2">
+      {/* Filtro Centro de Receita + Exportar */}
+      <div className="flex gap-2 items-center">
         {(['todos', 'loja', 'delivery'] as const).map(c => (
           <button key={c} onClick={() => setCentro(c)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -96,6 +123,14 @@ export default function FinanceiroPage() {
             {c === 'todos' ? 'Todos' : c === 'loja' ? 'Loja' : 'Delivery'}
           </button>
         ))}
+        <div className="flex-1" />
+        <button
+          onClick={exportarCSV}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+          title="Exportar CSV"
+        >
+          <Download className="w-4 h-4" /> Exportar
+        </button>
       </div>
 
       {/* Lista */}

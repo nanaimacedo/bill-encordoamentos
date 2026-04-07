@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback } from 'react'
 import { Search, RotateCcw, Check, Plus, Truck, Package, X, ChevronDown, Paintbrush, Sparkles, Shield, Circle, Grip, Disc, Wrench } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
+import { useToast } from '@/components/Toast'
 
 interface Cliente {
   id: string
@@ -97,6 +98,7 @@ export default function NovoEncordoamentoPageWrapper() {
 
 function NovoEncordoamentoPage() {
   const searchParams = useSearchParams()
+  const { toast } = useToast()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [cordas, setCordas] = useState<Corda[]>([])
   const [busca, setBusca] = useState('')
@@ -268,25 +270,35 @@ function NovoEncordoamentoPage() {
         }),
       })
       if (res.ok) {
+        toast({ title: 'Encordoamento registrado com sucesso!', type: 'success' })
         setSucesso(true)
         setTimeout(() => { setSucesso(false); resetForm() }, 1500)
+      } else {
+        toast({ title: 'Erro ao registrar encordoamento', type: 'error' })
       }
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      toast({ title: 'Erro ao registrar encordoamento', type: 'error' })
+    }
     finally { setSalvando(false) }
   }
 
   const criarCliente = async () => {
     if (!novoCliente.nome || !novoCliente.telefone) return
-    const res = await fetch('/api/clientes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(novoCliente),
-    })
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/clientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(novoCliente),
+      })
+      if (!res.ok) throw new Error('Falha ao criar cliente')
       const cliente = await res.json()
+      toast({ title: 'Cliente criado com sucesso!', type: 'success' })
       setShowNovoCliente(false)
       setNovoCliente({ nome: '', telefone: '', condominio: '', apartamento: '' })
       selecionarCliente(cliente)
+    } catch {
+      toast({ title: 'Erro ao criar cliente', type: 'error' })
     }
   }
 

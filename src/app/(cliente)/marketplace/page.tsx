@@ -33,6 +33,13 @@ interface Pedido {
   pagamento: { status: string } | null
 }
 
+interface Encordoamento {
+  id: string
+  status: string
+  createdAt: string
+  corda: { id: string; nome: string; marca: string }
+}
+
 interface Fidelidade {
   pontosFidelidade: number
   totalEncordoamentos: number
@@ -79,8 +86,12 @@ export default function LojaClientePage() {
   const [taxaDelivery] = useState(10)
   const [criandoPedido, setCriandoPedido] = useState(false)
 
-  const [secao, setSecao] = useState<'loja' | 'pedidos' | 'fidelidade'>('loja')
+  const [secao, setSecao] = useState<'loja' | 'pedidos' | 'fidelidade' | 'avaliacoes'>('loja')
   const [pedidoExpandido, setPedidoExpandido] = useState<string | null>(null)
+
+  const [encordoamentos, setEncordoamentos] = useState<Encordoamento[]>([])
+  const [avaliacoes, setAvaliacoes] = useState<Record<string, number>>({})
+  const [enviandoAvaliacao, setEnviandoAvaliacao] = useState<string | null>(null)
 
   const carregarProdutos = async () => {
     const res = await fetch('/api/produtos')
@@ -105,6 +116,43 @@ export default function LojaClientePage() {
     if (res.ok) setFidelidade(await res.json())
   }, [clienteId])
 
+  const carregarEncordoamentos = useCallback(async () => {
+    if (!clienteId) return
+    const res = await fetch(`/api/encordoamentos?clienteId=${clienteId}`)
+    const data = await res.json()
+    const entregues = data.filter((e: Encordoamento) => e.status === 'entregue' || e.status === 'pronto')
+    setEncordoamentos(entregues)
+  }, [clienteId])
+
+  const carregarAvaliacoes = useCallback(async () => {
+    if (!clienteId) return
+    const res = await fetch('/api/avaliacoes')
+    const data = await res.json()
+    const minhas: Record<string, number> = {}
+    for (const a of data.avaliacoes) {
+      if (a.cliente.id === clienteId) {
+        minhas[a.corda.id] = a.nota
+      }
+    }
+    setAvaliacoes(minhas)
+  }, [clienteId])
+
+  const enviarAvaliacao = async (cordaId: string, nota: number) => {
+    setEnviandoAvaliacao(cordaId)
+    try {
+      await fetch('/api/avaliacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteId, cordaId, nota }),
+      })
+      setAvaliacoes(prev => ({ ...prev, [cordaId]: nota }))
+    } catch {
+      // silently fail
+    } finally {
+      setEnviandoAvaliacao(null)
+    }
+  }
+
   useEffect(() => {
     carregarProdutos()
   }, [])
@@ -114,8 +162,10 @@ export default function LojaClientePage() {
       carregarCarrinho()
       carregarPedidos()
       carregarFidelidade()
+      carregarEncordoamentos()
+      carregarAvaliacoes()
     }
-  }, [clienteId, carregarCarrinho, carregarPedidos, carregarFidelidade])
+  }, [clienteId, carregarCarrinho, carregarPedidos, carregarFidelidade, carregarEncordoamentos, carregarAvaliacoes])
 
   const buscarCliente = async () => {
     if (!telefone.trim()) return
@@ -230,6 +280,8 @@ export default function LojaClientePage() {
     setCarrinho([])
     setPedidos([])
     setFidelidade(null)
+    setEncordoamentos([])
+    setAvaliacoes({})
     setCupomDesconto(0)
     setCupomCodigo('')
     setCupomInput('')
@@ -329,6 +381,12 @@ export default function LojaClientePage() {
               className={`flex-1 py-3 text-xs font-medium text-center border-b-2 ${secao === 'fidelidade' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500'}`}
             >
               <Star className="w-4 h-4 mx-auto mb-0.5" /> Fidelidade
+            </button>
+            <button
+              onClick={() => setSecao('avaliacoes')}
+              className={`flex-1 py-3 text-xs font-medium text-center border-b-2 ${secao === 'avaliacoes' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500'}`}
+            >
+              <Star className="w-4 h-4 mx-auto mb-0.5" /> Avaliar
             </button>
           </div>
 
@@ -474,6 +532,58 @@ export default function LojaClientePage() {
                   </div>
                 ) : (
                   <p className="text-center text-gray-400 py-8 text-sm">Carregando...</p>
+                )}
+              </div>
+            )}
+
+            {/* AVALIACOES SECTION */}
+            {secao === 'avaliacoes' && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Star className="w-4 h-4" /> Avalie suas cordas
+                </h3>
+                <p className="text-xs text-gray-500">Avalie as cordas dos seus encordoamentos finalizados</p>
+
+                {encordoamentos.length === 0 ? (
+                  <p className="text-center text-gray-400 py-8 text-sm">Nenhum encordoamento finalizado para avaliar</p>
+                ) : (
+                  encordoamentos.map((enc) => {
+                    const notaAtual = avaliacoes[enc.corda.id] || 0
+                    return (
+                      <div key={enc.id} className="bg-white rounded-xl p-4 border border-gray-100 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{enc.corda.nome}</p>
+                            <p className="text-xs text-gray-500">{enc.corda.marca}</p>
+                          </div>
+                          {notaAtual > 0 && (
+                            <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">Avaliado</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((estrela) => (
+                            <button
+                              key={estrela}
+                              disabled={enviandoAvaliacao === enc.corda.id}
+                              onClick={() => enviarAvaliacao(enc.corda.id, estrela)}
+                              className="p-0.5 transition-transform hover:scale-110 disabled:opacity-50"
+                            >
+                              <Star
+                                className={`w-7 h-7 ${
+                                  estrela <= notaAtual
+                                    ? 'text-yellow-400 fill-yellow-400'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            </button>
+                          ))}
+                          {notaAtual > 0 && (
+                            <span className="text-sm text-gray-500 ml-2">{notaAtual}/5</span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })
                 )}
               </div>
             )}
