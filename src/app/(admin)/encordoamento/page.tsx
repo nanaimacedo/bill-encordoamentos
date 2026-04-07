@@ -32,7 +32,7 @@ interface LastEncordoamento {
   corda: { nome: string; marca: string }
 }
 
-const TENSOES_MAIN = [48, 50, 52, 53, 54, 55, 56, 57, 58, 60, 62]
+const TENSOES_MAIN = [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
 
 // Serviços simples (sem variações de marca)
 const SERVICOS_SIMPLES: { id: string; nome: string; preco: number; iconKey: string }[] = [
