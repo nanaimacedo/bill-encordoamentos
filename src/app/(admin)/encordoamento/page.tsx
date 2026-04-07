@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
-import { Search, RotateCcw, Check, Plus, Truck, Package } from 'lucide-react'
+import { Search, RotateCcw, Check, Plus, Truck, Package, X, ChevronDown, Paintbrush } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 
@@ -18,6 +18,7 @@ interface Corda {
   nome: string
   marca: string
   tipo: string
+  calibre: string
   preco: number
 }
 
@@ -30,7 +31,18 @@ interface LastEncordoamento {
   corda: { nome: string; marca: string }
 }
 
-const TENSOES = [48, 50, 52, 54, 55, 56, 57, 58, 60, 62]
+const TENSOES_MAIN = [48, 50, 52, 53, 54, 55, 56, 57, 58, 60, 62]
+
+const SERVICOS_EXTRAS = [
+  { id: 'overgrip', nome: 'Overgrip', preco: 15, icon: '🎾' },
+  { id: 'grip', nome: 'Grip Base', preco: 25, icon: '✋' },
+  { id: 'antivibrador', nome: 'Antivibrador', preco: 10, icon: '🔇' },
+  { id: 'pintar_logo', nome: 'Pintar Logo', preco: 20, icon: '🎨' },
+  { id: 'limpeza', nome: 'Limpeza Raquete', preco: 15, icon: '✨' },
+  { id: 'protecao', nome: 'Proteção Cabeça', preco: 12, icon: '🛡️' },
+  { id: 'bumper', nome: 'Bumper Guard', preco: 18, icon: '🔧' },
+  { id: 'peso', nome: 'Ajuste de Peso', preco: 30, icon: '⚖️' },
+]
 
 export default function NovoEncordoamentoPageWrapper() {
   return (
@@ -46,6 +58,7 @@ function NovoEncordoamentoPage() {
   const [cordas, setCordas] = useState<Corda[]>([])
   const [busca, setBusca] = useState('')
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
+  const [showModal, setShowModal] = useState(false)
   const [cordaSelecionada, setCordaSelecionada] = useState<string>('')
   const [tensao, setTensao] = useState<number>(55)
   const [preco, setPreco] = useState<number>(0)
@@ -53,13 +66,14 @@ function NovoEncordoamentoPage() {
   const [entrega, setEntrega] = useState<'retirada' | 'delivery'>('retirada')
   const [enderecoEntrega, setEnderecoEntrega] = useState('')
   const [taxaDelivery, setTaxaDelivery] = useState<number>(10)
+  const [servicosExtras, setServicosExtras] = useState<Set<string>>(new Set())
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [lastEnc, setLastEnc] = useState<LastEncordoamento | null>(null)
   const [showNovoCliente, setShowNovoCliente] = useState(false)
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', condominio: '', apartamento: '' })
 
-  // Auto-selecionar cliente via query param (vindo do scanner QR)
+  // Auto-selecionar cliente via query param
   useEffect(() => {
     const clienteId = searchParams.get('clienteId')
     if (clienteId) {
@@ -69,55 +83,56 @@ function NovoEncordoamentoPage() {
           if (c && c.id) {
             setClienteSelecionado(c)
             setBusca(c.nome)
+            setShowModal(true)
           }
         })
         .catch(() => {})
     }
   }, [searchParams])
 
-  // Buscar clientes
   const buscarClientes = useCallback(async (q: string) => {
     if (q.length < 1) { setClientes([]); return }
     const res = await fetch(`/api/clientes?q=${encodeURIComponent(q)}`)
-    const data = await res.json()
-    setClientes(data)
+    setClientes(await res.json())
   }, [])
 
-  // Buscar cordas
   useEffect(() => {
     fetch('/api/cordas').then(r => r.json()).then(setCordas)
   }, [])
 
-  // Debounce busca
   useEffect(() => {
     const t = setTimeout(() => buscarClientes(busca), 200)
     return () => clearTimeout(t)
   }, [busca, buscarClientes])
 
-  // Buscar último encordoamento quando selecionar cliente
   useEffect(() => {
     if (!clienteSelecionado) { setLastEnc(null); return }
     fetch(`/api/encordoamentos/repetir/${clienteSelecionado.id}`)
       .then(r => r.json())
-      .then(data => {
-        if (data && data.id) setLastEnc(data)
-        else setLastEnc(null)
-      })
+      .then(data => { if (data?.id) setLastEnc(data); else setLastEnc(null) })
       .catch(() => setLastEnc(null))
-
-    // Auto-preencher endereço de delivery com condomínio do cliente
     if (clienteSelecionado.condominio) {
-      setEnderecoEntrega(
-        `${clienteSelecionado.condominio}${clienteSelecionado.apartamento ? ` - Apt ${clienteSelecionado.apartamento}` : ''}`
-      )
+      setEnderecoEntrega(`${clienteSelecionado.condominio}${clienteSelecionado.apartamento ? ` - Apt ${clienteSelecionado.apartamento}` : ''}`)
     }
   }, [clienteSelecionado])
 
-  // Update preco when corda changes
   useEffect(() => {
     const corda = cordas.find(c => c.id === cordaSelecionada)
     if (corda) setPreco(corda.preco)
   }, [cordaSelecionada, cordas])
+
+  const toggleServico = (id: string) => {
+    setServicosExtras(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const totalExtras = SERVICOS_EXTRAS.filter(s => servicosExtras.has(s.id)).reduce((sum, s) => sum + s.preco, 0)
+  const precoServico = preco
+  const precoDelivery = entrega === 'delivery' ? taxaDelivery : 0
+  const precoTotal = precoServico + totalExtras + precoDelivery
 
   const repetirUltimo = () => {
     if (!lastEnc) return
@@ -126,11 +141,30 @@ function NovoEncordoamentoPage() {
     setPreco(lastEnc.preco)
   }
 
-  const precoTotal = entrega === 'delivery' ? preco + taxaDelivery : preco
+  const selecionarCliente = (c: Cliente) => {
+    setClienteSelecionado(c)
+    setBusca(c.nome)
+    setShowModal(true)
+  }
+
+  const resetForm = () => {
+    setShowModal(false)
+    setClienteSelecionado(null)
+    setCordaSelecionada('')
+    setTensao(55)
+    setPreco(0)
+    setObservacoes('')
+    setEntrega('retirada')
+    setEnderecoEntrega('')
+    setServicosExtras(new Set())
+    setBusca('')
+    setLastEnc(null)
+  }
 
   const salvar = async () => {
     if (!clienteSelecionado || !cordaSelecionada) return
     setSalvando(true)
+    const extras = SERVICOS_EXTRAS.filter(s => servicosExtras.has(s.id)).map(s => s.nome).join(', ')
     try {
       const res = await fetch('/api/encordoamentos', {
         method: 'POST',
@@ -140,34 +174,20 @@ function NovoEncordoamentoPage() {
           cordaId: cordaSelecionada,
           tensao,
           preco: precoTotal,
-          observacoes,
+          observacoes: [observacoes, extras ? `Extras: ${extras}` : ''].filter(Boolean).join(' | '),
           tipo: 'padrao',
           entrega,
           enderecoEntrega: entrega === 'delivery' ? enderecoEntrega : '',
-          taxaDelivery: entrega === 'delivery' ? taxaDelivery : 0,
+          taxaDelivery: precoDelivery,
           centroReceita: entrega === 'delivery' ? 'delivery' : 'loja',
         }),
       })
       if (res.ok) {
         setSucesso(true)
-        setTimeout(() => {
-          setSucesso(false)
-          setClienteSelecionado(null)
-          setCordaSelecionada('')
-          setTensao(55)
-          setPreco(0)
-          setObservacoes('')
-          setEntrega('retirada')
-          setEnderecoEntrega('')
-          setBusca('')
-          setLastEnc(null)
-        }, 1500)
+        setTimeout(() => { setSucesso(false); resetForm() }, 1500)
       }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setSalvando(false)
-    }
+    } catch (err) { console.error(err) }
+    finally { setSalvando(false) }
   }
 
   const criarCliente = async () => {
@@ -179,257 +199,286 @@ function NovoEncordoamentoPage() {
     })
     if (res.ok) {
       const cliente = await res.json()
-      setClienteSelecionado(cliente)
       setShowNovoCliente(false)
       setNovoCliente({ nome: '', telefone: '', condominio: '', apartamento: '' })
-      setBusca(cliente.nome)
+      selecionarCliente(cliente)
     }
   }
 
-  if (sucesso) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800">Encordoamento Registrado!</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {entrega === 'delivery' ? 'Delivery programado' : 'Aguardando retirada'}
-          </p>
-        </div>
-      </div>
-    )
-  }
+  const cordaSel = cordas.find(c => c.id === cordaSelecionada)
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800">Novo Encordoamento</h1>
-
-      {/* Step 1: Selecionar cliente */}
-      {!clienteSelecionado ? (
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar cliente por nome ou telefone..."
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm"
-              autoFocus
-            />
-          </div>
-
-          {clientes.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 divide-y max-h-60 overflow-y-auto">
-              {clientes.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => { setClienteSelecionado(c); setBusca(c.nome) }}
-                  className="w-full text-left px-4 py-3 hover:bg-green-50 transition-colors"
-                >
-                  <p className="font-medium text-sm text-gray-800">{c.nome}</p>
-                  <p className="text-xs text-gray-500">{c.telefone}</p>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <button
-            onClick={() => setShowNovoCliente(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 hover:border-green-500 hover:text-green-600 transition-colors text-sm"
-          >
-            <Plus className="w-4 h-4" /> Novo Cliente
-          </button>
-
-          {showNovoCliente && (
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
-                <h3 className="text-lg font-bold text-gray-800">Novo Cliente</h3>
-                <input placeholder="Nome *" value={novoCliente.nome} onChange={e => setNovoCliente(p => ({ ...p, nome: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
-                <input placeholder="Telefone *" value={novoCliente.telefone} onChange={e => setNovoCliente(p => ({ ...p, telefone: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
-                <input placeholder="Condomínio" value={novoCliente.condominio} onChange={e => setNovoCliente(p => ({ ...p, condominio: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
-                <input placeholder="Apartamento" value={novoCliente.apartamento} onChange={e => setNovoCliente(p => ({ ...p, apartamento: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500" />
-                <div className="flex gap-2">
-                  <button onClick={() => setShowNovoCliente(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Cancelar</button>
-                  <button onClick={criarCliente} className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700">Salvar</button>
-                </div>
-              </div>
-            </div>
-          )}
+    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto animate-fadeIn">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 font-heading">Novo Serviço</h1>
+          <p className="text-sm text-gray-500">Selecione o cliente para iniciar</p>
         </div>
-      ) : (
-        <>
-          {/* Cliente selecionado */}
-          <div className="bg-green-50 rounded-xl p-3 flex items-center justify-between">
-            <div>
-              <p className="font-medium text-sm text-gray-800">{clienteSelecionado.nome}</p>
-              <p className="text-xs text-gray-500">{clienteSelecionado.telefone}</p>
+      </div>
+
+      {/* Client search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Buscar cliente por nome ou telefone..."
+          value={busca}
+          onChange={e => { setBusca(e.target.value); setClienteSelecionado(null) }}
+          className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm bg-white shadow-sm"
+          autoFocus
+        />
+      </div>
+
+      {clientes.length > 0 && !showModal && (
+        <div className="bg-white rounded-xl border border-gray-200 divide-y max-h-60 overflow-y-auto shadow-sm">
+          {clientes.map(c => (
+            <button
+              key={c.id}
+              onClick={() => selecionarCliente(c)}
+              className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors"
+            >
+              <p className="font-medium text-sm text-gray-800">{c.nome}</p>
+              <p className="text-xs text-gray-500">{c.telefone}</p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={() => setShowNovoCliente(true)}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors text-sm"
+      >
+        <Plus className="w-4 h-4" /> Novo Cliente
+      </button>
+
+      {/* ===== MODAL PRINCIPAL - Registro de Serviço ===== */}
+      {showModal && clienteSelecionado && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-8 md:pt-16 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-slideUp mb-8">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 font-heading">Novo Serviço</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{clienteSelecionado.nome} · {clienteSelecionado.telefone}</p>
+              </div>
+              <button onClick={resetForm} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
             </div>
-            <button
-              onClick={() => { setClienteSelecionado(null); setBusca(''); setLastEnc(null) }}
-              className="text-xs text-green-700 underline"
-            >
-              Trocar
-            </button>
-          </div>
 
-          {/* Repetir último */}
-          {lastEnc && (
-            <button
-              onClick={repetirUltimo}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-50 text-blue-700 font-medium text-sm hover:bg-blue-100 transition-colors"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Repetir último: {lastEnc.corda.nome} - {lastEnc.tensao}lbs
-            </button>
-          )}
-
-          {/* Step 2: Selecionar corda */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Corda</label>
-            <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-              {cordas.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => setCordaSelecionada(c.id)}
-                  className={`text-left px-4 py-3 rounded-xl border-2 transition-all text-sm ${
-                    cordaSelecionada === c.id
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+            <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+              {/* Repetir último */}
+              {lastEnc && (
+                <button onClick={repetirUltimo}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-50 text-blue-700 font-medium text-sm hover:bg-blue-100 transition-colors border border-blue-200"
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="font-medium text-gray-800">{c.nome}</span>
-                      <span className="text-gray-400 ml-1">- {c.marca}</span>
-                    </div>
-                    <span className="text-green-600 font-semibold">{formatCurrency(c.preco)}</span>
+                  <RotateCcw className="w-4 h-4" />
+                  Repetir: {lastEnc.corda.nome} · {lastEnc.tensao}lbs · {formatCurrency(lastEnc.preco)}
+                </button>
+              )}
+
+              {/* SEÇÃO: Corda */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Corda</p>
+                <select
+                  value={cordaSelecionada}
+                  onChange={e => setCordaSelecionada(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none cursor-pointer font-medium"
+                >
+                  <option value="">Selecione a corda...</option>
+                  {cordas.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome} — {c.marca} ({c.tipo}) · {formatCurrency(c.preco)}
+                    </option>
+                  ))}
+                </select>
+                {cordaSel && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{cordaSel.marca}</span>
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cordaSel.tipo}</span>
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cordaSel.calibre}mm</span>
+                    <span className="ml-auto text-sm font-bold text-emerald-600">{formatCurrency(cordaSel.preco)}</span>
                   </div>
-                </button>
-              ))}
-            </div>
-          </div>
+                )}
+              </div>
 
-          {/* Step 3: Tensão */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Tensão: {tensao} lbs
-            </label>
-            <div className="grid grid-cols-5 gap-2">
-              {TENSOES.map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTensao(t)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    tensao === t
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-            <input
-              type="number"
-              value={tensao}
-              onChange={e => setTensao(Number(e.target.value))}
-              placeholder="Tensão personalizada"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-
-          {/* Step 4: Entrega (Retirada ou Delivery) */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Entrega</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setEntrega('retirada')}
-                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                  entrega === 'retirada'
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                <Package className="w-4 h-4" /> Retirada
-              </button>
-              <button
-                onClick={() => setEntrega('delivery')}
-                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                  entrega === 'delivery'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                <Truck className="w-4 h-4" /> Delivery
-              </button>
-            </div>
-
-            {entrega === 'delivery' && (
-              <div className="space-y-2 bg-blue-50 rounded-xl p-3">
-                <input
-                  type="text"
-                  value={enderecoEntrega}
-                  onChange={e => setEnderecoEntrega(e.target.value)}
-                  placeholder="Endereço de entrega..."
-                  className="w-full px-4 py-2 rounded-lg border border-blue-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-blue-600">Taxa delivery:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={taxaDelivery}
-                    onChange={e => setTaxaDelivery(Number(e.target.value))}
-                    className="w-28 px-3 py-1.5 rounded-lg border border-blue-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  />
+              {/* SEÇÃO: Tensão */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
+                  Tensão · <span className="text-gray-800 text-sm">{tensao} lbs</span>
+                </p>
+                <div className="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
+                  {TENSOES_MAIN.map(t => (
+                    <button key={t} onClick={() => setTensao(t)}
+                      className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                        tensao === t
+                          ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Step 5: Preço */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Preço do Serviço</label>
-            <input
-              type="number"
-              step="0.01"
-              value={preco}
-              onChange={e => setPreco(Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500 text-lg font-bold"
-            />
-            {entrega === 'delivery' && (
-              <div className="flex justify-between text-sm text-gray-600 px-1">
-                <span>Serviço: {formatCurrency(preco)}</span>
-                <span>Delivery: +{formatCurrency(taxaDelivery)}</span>
-                <span className="font-bold text-gray-800">Total: {formatCurrency(precoTotal)}</span>
+              {/* SEÇÃO: Serviços Extras (Badges) */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Serviços Extras</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SERVICOS_EXTRAS.map(s => (
+                    <button key={s.id} onClick={() => toggleServico(s.id)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                        servicosExtras.has(s.id)
+                          ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="text-base">{s.icon}</span>
+                      <span className="flex-1 text-left">{s.nome}</span>
+                      <span className="text-xs opacity-70">{formatCurrency(s.preco)}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Observações */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Observações</label>
-            <textarea
-              value={observacoes}
-              onChange={e => setObservacoes(e.target.value)}
-              placeholder="Opcional..."
-              rows={2}
-              className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500 resize-none"
-            />
-          </div>
+              {/* SEÇÃO: Entrega */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Entrega</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setEntrega('retirada')}
+                    className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      entrega === 'retirada'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <Package className="w-4 h-4" /> Retirada na Loja
+                  </button>
+                  <button onClick={() => setEntrega('delivery')}
+                    className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      entrega === 'delivery'
+                        ? 'border-orange-400 bg-orange-50 text-orange-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <Truck className="w-4 h-4" /> Delivery
+                  </button>
+                </div>
+                {entrega === 'delivery' && (
+                  <div className="mt-2 space-y-2 bg-orange-50 rounded-xl p-3 border border-orange-200">
+                    <input type="text" value={enderecoEntrega} onChange={e => setEnderecoEntrega(e.target.value)}
+                      placeholder="Endereço de entrega..."
+                      className="w-full px-3 py-2 rounded-lg border border-orange-200 text-sm outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-orange-600">Taxa:</span>
+                      <input type="number" step="0.01" value={taxaDelivery} onChange={e => setTaxaDelivery(Number(e.target.value))}
+                        className="w-24 px-3 py-1.5 rounded-lg border border-orange-200 text-sm outline-none bg-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
 
-          {/* Botão salvar */}
-          <button
-            onClick={salvar}
-            disabled={!cordaSelecionada || salvando}
-            className="w-full py-4 rounded-xl bg-green-600 text-white font-bold text-base hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {salvando ? 'Salvando...' : `Registrar ${entrega === 'delivery' ? '+ Delivery' : ''} - ${formatCurrency(precoTotal)}`}
-          </button>
-        </>
+              {/* SEÇÃO: Observações */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Observações</p>
+                <textarea value={observacoes} onChange={e => setObservacoes(e.target.value)}
+                  placeholder="Informações adicionais (opcional)..."
+                  rows={2}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              </div>
+            </div>
+
+            {/* Footer - Resumo + Salvar */}
+            <div className="p-5 border-t border-gray-100 space-y-3">
+              {/* Resumo de preço */}
+              <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-sm">
+                <div className="flex justify-between text-gray-600">
+                  <span>Encordoamento</span>
+                  <span>{formatCurrency(precoServico)}</span>
+                </div>
+                {totalExtras > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Extras ({servicosExtras.size})</span>
+                    <span>+{formatCurrency(totalExtras)}</span>
+                  </div>
+                )}
+                {precoDelivery > 0 && (
+                  <div className="flex justify-between text-orange-600">
+                    <span>Delivery</span>
+                    <span>+{formatCurrency(precoDelivery)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-gray-900 text-base pt-1 border-t border-gray-200">
+                  <span>Total</span>
+                  <span className="text-emerald-600">{formatCurrency(precoTotal)}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={resetForm}
+                  className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={salvar} disabled={!cordaSelecionada || salvando}
+                  className="flex-[2] py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-emerald-200">
+                  {salvando ? 'Salvando...' : 'Salvar e Registrar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sucesso */}
+      {sucesso && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 text-center animate-slideUp">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-emerald-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 font-heading">Serviço Registrado!</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {entrega === 'delivery' ? 'Delivery programado' : 'Aguardando retirada'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Novo Cliente */}
+      {showNovoCliente && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 font-heading">Novo Cliente</h3>
+              <button onClick={() => setShowNovoCliente(false)} className="p-2 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Dados do Cliente</p>
+                <input placeholder="Nome completo *" value={novoCliente.nome} onChange={e => setNovoCliente(p => ({ ...p, nome: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2" />
+                <input placeholder="Telefone/WhatsApp *" value={novoCliente.telefone} onChange={e => setNovoCliente(p => ({ ...p, telefone: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Localização</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input placeholder="Condomínio" value={novoCliente.condominio} onChange={e => setNovoCliente(p => ({ ...p, condominio: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <input placeholder="Apartamento" value={novoCliente.apartamento} onChange={e => setNovoCliente(p => ({ ...p, apartamento: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 p-5 border-t border-gray-100">
+              <button onClick={() => setShowNovoCliente(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600">Cancelar</button>
+              <button onClick={criarCliente} className="flex-[2] py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700">Salvar Cliente</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
