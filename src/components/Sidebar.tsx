@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "./Logo";
 import {
   LayoutDashboard,
   PlusCircle,
@@ -46,15 +47,11 @@ export default function Sidebar() {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-r md:border-border md:bg-white">
         {/* Brand */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 text-white font-bold text-lg">
-            B
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-foreground leading-tight font-heading">
-              Bill Encordoamentos
-            </h1>
-            <p className="text-xs text-foreground-muted">Gestão de serviços</p>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+          <Logo size={36} />
+          <div className="leading-tight">
+            <h1 className="text-sm font-bold text-foreground font-heading tracking-tight">ENCORDOAMENTO</h1>
+            <p className="text-sm font-black text-amber-500 italic tracking-tight">PROFISSIONAL</p>
           </div>
         </div>
 

@@ -119,9 +119,12 @@ export default function PortalClientePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-green-600 text-white px-4 py-6 text-center">
-        <h1 className="text-xl font-bold">Bill Encordoamentos</h1>
-        <p className="text-green-100 text-sm mt-1">Portal do Cliente</p>
+      <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white px-4 py-6 text-center">
+        <div className="flex justify-center mb-2">
+          <img src="/favicon.svg" alt="Logo" className="w-10 h-10" />
+        </div>
+        <h1 className="text-lg font-bold tracking-wide">ENCORDOAMENTO <span className="text-amber-400 italic">PROFISSIONAL</span></h1>
+        <p className="text-gray-400 text-sm mt-1">Portal do Cliente</p>
       </div>
 
       <div className="p-4 max-w-lg mx-auto space-y-4">

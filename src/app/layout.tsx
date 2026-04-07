@@ -15,9 +15,12 @@ const workSans = Work_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Bill Encordoamentos",
+  title: "Bill Encordoamentos - Encordoamento Profissional",
   description:
     "Sistema de gerenciamento de encordoamentos de raquetes de tênis. Controle seus serviços, clientes e finanças.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, ReactNode } from 'react'
 import { Lock } from 'lucide-react'
+import { LogoFull } from './Logo'
 
 function isAuthenticated(): boolean {
   if (typeof window === 'undefined') return false
@@ -73,12 +74,9 @@ export default function AdminAuth({ children }: { children: ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <Lock className="w-7 h-7 text-green-600" />
-            </div>
-            <h1 className="text-xl font-bold text-gray-800">Bill Encordoamentos</h1>
-            <p className="text-sm text-gray-500">Area administrativa</p>
+          <div className="text-center space-y-4">
+            <LogoFull />
+            <p className="text-sm text-gray-500">Acesso administrativo</p>
           </div>
 
           <div className="space-y-4">
