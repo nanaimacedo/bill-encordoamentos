@@ -9,7 +9,7 @@ export async function GET(request: Request) {
       where: q
         ? {
             OR: [
-              { nome: { contains: q } },
+              { nome: { contains: q, mode: 'insensitive' as const } },
               { telefone: { contains: q } },
             ],
           }
@@ -38,6 +38,8 @@ export async function POST(request: Request) {
         condominio: body.condominio || null,
         apartamento: body.apartamento || null,
         email: body.email || null,
+        centroReceita: body.centroReceita || 'loja',
+        dataNascimento: body.dataNascimento ? new Date(body.dataNascimento) : null,
       },
     })
 
