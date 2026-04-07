@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Phone, MapPin, Clock, DollarSign, QrCode, Plus, Download, Truck } from 'lucide-react'
+import { ArrowLeft, Phone, MapPin, Clock, DollarSign, QrCode, Plus, Download, Truck, Store } from 'lucide-react'
 import { formatCurrency, formatDate, daysSince } from '@/lib/utils'
 
 interface Encordoamento {
@@ -30,6 +30,7 @@ interface ClienteDetail {
   condominio: string | null
   apartamento: string | null
   qrCode: string | null
+  centroReceita?: string
   createdAt: string
   encordoamentos: Encordoamento[]
   pagamentos: { id: string; valor: number; status: string; createdAt: string }[]
@@ -158,6 +159,9 @@ export default function ClienteDetailPage() {
             <MapPin className="w-4 h-4" /> {cliente.condominio} {cliente.apartamento && `- Apt ${cliente.apartamento}`}
           </div>
         )}
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Store className="w-4 h-4" /> Centro: {cliente.centroReceita === 'delivery' ? 'Delivery' : 'Loja (Clube)'}
+        </div>
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Clock className="w-4 h-4" /> Cliente desde {formatDate(cliente.createdAt)}
         </div>

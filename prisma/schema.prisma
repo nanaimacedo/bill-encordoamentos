@@ -7,17 +7,18 @@ datasource db {
 }
 
 model Cliente {
-  id            String   @id @default(cuid())
-  nome          String
-  telefone      String
-  condominio    String?
-  apartamento   String?
-  email         String?
-  qrCode        String?  @unique
+  id             String   @id @default(cuid())
+  nome           String
+  telefone       String
+  condominio     String?
+  apartamento    String?
+  email          String?
+  qrCode         String?  @unique
   dataNascimento DateTime?
   pontosFidelidade Int    @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  centroReceita  String   @default("loja") // loja, delivery
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   encordoamentos Encordoamento[]
   pagamentos     Pagamento[]
@@ -86,6 +87,7 @@ model Encordoamento {
   entrega         String   @default("retirada")
   enderecoEntrega String   @default("")
   taxaDelivery    Float    @default(0)
+  centroReceita   String   @default("loja") // loja, clube, delivery
   observacoes     String   @default("")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -183,6 +185,7 @@ model Pedido {
   taxaDelivery    Float    @default(0)
   cupomId         String?
   desconto        Float    @default(0)
+  centroReceita   String   @default("loja") // loja, delivery
   observacoes     String   @default("")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

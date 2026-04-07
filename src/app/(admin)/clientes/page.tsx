@@ -18,7 +18,7 @@ export default function ClientesPage() {
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ nome: '', telefone: '', condominio: '', apartamento: '' })
+  const [form, setForm] = useState({ nome: '', telefone: '', condominio: '', apartamento: '', centroReceita: 'loja' })
 
   const carregar = async (q = '') => {
     setLoading(true)
@@ -44,7 +44,7 @@ export default function ClientesPage() {
     })
     if (res.ok) {
       setShowForm(false)
-      setForm({ nome: '', telefone: '', condominio: '', apartamento: '' })
+      setForm({ nome: '', telefone: '', condominio: '', apartamento: '', centroReceita: 'loja' })
       carregar(busca)
     }
   }
@@ -131,6 +131,14 @@ export default function ClientesPage() {
               onChange={e => setForm(p => ({ ...p, apartamento: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
             />
+            <select
+              value={form.centroReceita || 'loja'}
+              onChange={e => setForm(p => ({ ...p, centroReceita: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="loja">Loja (Clube)</option>
+              <option value="delivery">Delivery</option>
+            </select>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowForm(false)}

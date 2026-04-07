@@ -145,6 +145,7 @@ function NovoEncordoamentoPage() {
           entrega,
           enderecoEntrega: entrega === 'delivery' ? enderecoEntrega : '',
           taxaDelivery: entrega === 'delivery' ? taxaDelivery : 0,
+          centroReceita: entrega === 'delivery' ? 'delivery' : 'loja',
         }),
       })
       if (res.ok) {

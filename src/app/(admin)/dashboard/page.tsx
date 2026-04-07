@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BarChart3, DollarSign, TrendingUp, AlertCircle, Truck, Package } from 'lucide-react'
+import { BarChart3, DollarSign, TrendingUp, AlertCircle, Truck, Package, Store } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 interface DashboardData {
@@ -23,6 +23,10 @@ interface DashboardData {
   deliveryStats: {
     totalDelivery: number
     totalRetirada: number
+  }
+  centroReceita: {
+    loja: { faturamento: number; total: number }
+    delivery: { faturamento: number; total: number }
   }
 }
 
@@ -104,13 +108,24 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 rounded-lg bg-blue-50">
-              <Truck className="w-4 h-4 text-blue-600" />
+              <Store className="w-4 h-4 text-blue-600" />
             </div>
           </div>
-          <p className="text-xs text-gray-500 mb-1">Delivery / Retirada</p>
-          <p className="text-lg font-bold text-gray-800">
-            {data.deliveryStats.totalDelivery} / {data.deliveryStats.totalRetirada}
-          </p>
+          <p className="text-xs text-gray-500 mb-1">Receita por Centro</p>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Loja</span>
+              <span className="text-sm font-bold text-gray-800">
+                {data.centroReceita?.loja.total ?? data.deliveryStats.totalRetirada} ({formatCurrency(data.centroReceita?.loja.faturamento ?? 0)})
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Delivery</span>
+              <span className="text-sm font-bold text-gray-800">
+                {data.centroReceita?.delivery.total ?? data.deliveryStats.totalDelivery} ({formatCurrency(data.centroReceita?.delivery.faturamento ?? 0)})
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

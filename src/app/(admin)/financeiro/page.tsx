@@ -12,13 +12,14 @@ interface Pagamento {
   createdAt: string
   dataPagamento: string | null
   cliente: { id: string; nome: string; telefone: string }
-  encordoamento: { corda: { nome: string }; tensao: number } | null
+  encordoamento: { corda: { nome: string }; tensao: number; centroReceita?: string } | null
 }
 
 export default function FinanceiroPage() {
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState<'todos' | 'pendente' | 'pago'>('todos')
+  const [centro, setCentro] = useState<'todos' | 'loja' | 'delivery'>('todos')
 
   const carregar = async () => {
     setLoading(true)
@@ -40,11 +41,15 @@ export default function FinanceiroPage() {
     carregar()
   }
 
-  const totalPendente = pagamentos
+  const pagamentosFiltrados = centro === 'todos'
+    ? pagamentos
+    : pagamentos.filter(p => p.encordoamento?.centroReceita === centro)
+
+  const totalPendente = pagamentosFiltrados
     .filter(p => p.status === 'pendente')
     .reduce((sum, p) => sum + p.valor, 0)
 
-  const totalPago = pagamentos
+  const totalPago = pagamentosFiltrados
     .filter(p => p.status === 'pago')
     .reduce((sum, p) => sum + p.valor, 0)
 
@@ -81,6 +86,18 @@ export default function FinanceiroPage() {
         ))}
       </div>
 
+      {/* Filtro Centro de Receita */}
+      <div className="flex gap-2">
+        {(['todos', 'loja', 'delivery'] as const).map(c => (
+          <button key={c} onClick={() => setCentro(c)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              centro === c ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}>
+            {c === 'todos' ? 'Todos' : c === 'loja' ? 'Loja' : 'Delivery'}
+          </button>
+        ))}
+      </div>
+
       {/* Lista */}
       {loading ? (
         <div className="space-y-2">
@@ -88,10 +105,10 @@ export default function FinanceiroPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {pagamentos.length === 0 && (
+          {pagamentosFiltrados.length === 0 && (
             <p className="text-center text-gray-400 py-8 text-sm">Nenhum pagamento encontrado</p>
           )}
-          {pagamentos.map(p => (
+          {pagamentosFiltrados.map(p => (
             <div key={p.id} className="bg-white rounded-xl p-4 border border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <div>
