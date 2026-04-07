@@ -102,8 +102,11 @@ function NovoEncordoamentoPage() {
   const [busca, setBusca] = useState('')
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [cordaSelecionada, setCordaSelecionada] = useState<string>('')
-  const [tensao, setTensao] = useState<number>(55)
+  const [tipoEnc, setTipoEnc] = useState<'padrao' | 'hibrida'>('padrao')
+  const [cordaSelecionada, setCordaSelecionada] = useState<string>('') // main
+  const [cordaCross, setCordaCross] = useState<string>('') // cruzadas (híbrida)
+  const [tensao, setTensao] = useState<number>(55) // main
+  const [tensaoCross, setTensaoCross] = useState<number>(53) // cruzadas
   const [preco, setPreco] = useState<number>(0)
   const [observacoes, setObservacoes] = useState('')
   const [entrega, setEntrega] = useState<'retirada' | 'delivery'>('retirada')
@@ -162,9 +165,16 @@ function NovoEncordoamentoPage() {
   }, [clienteSelecionado])
 
   useEffect(() => {
-    const corda = cordas.find(c => c.id === cordaSelecionada)
-    if (corda) setPreco(corda.preco)
-  }, [cordaSelecionada, cordas])
+    const cordaMain = cordas.find(c => c.id === cordaSelecionada)
+    if (tipoEnc === 'hibrida') {
+      const cordaCr = cordas.find(c => c.id === cordaCross)
+      const p1 = cordaMain ? cordaMain.preco / 2 : 0
+      const p2 = cordaCr ? cordaCr.preco / 2 : 0
+      setPreco(Math.round((p1 + p2) * 100) / 100)
+    } else {
+      if (cordaMain) setPreco(cordaMain.preco)
+    }
+  }, [cordaSelecionada, cordaCross, cordas, tipoEnc])
 
   const toggleServicoSimples = (id: string) => {
     setServicosExtras(prev => {
@@ -210,8 +220,11 @@ function NovoEncordoamentoPage() {
   const resetForm = () => {
     setShowModal(false)
     setClienteSelecionado(null)
+    setTipoEnc('padrao')
     setCordaSelecionada('')
+    setCordaCross('')
     setTensao(55)
+    setTensaoCross(53)
     setPreco(0)
     setObservacoes('')
     setEntrega('retirada')
@@ -233,6 +246,10 @@ function NovoEncordoamentoPage() {
     })
     const extras = [...extrasSimples, ...extrasComMarca].join(', ')
     try {
+      const cordaCrObj = cordas.find(c => c.id === cordaCross)
+      const hibridaInfo = tipoEnc === 'hibrida' && cordaCrObj
+        ? `Híbrida: Cruzadas ${cordaCrObj.nome} ${tensaoCross}lbs`
+        : ''
       const res = await fetch('/api/encordoamentos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -240,9 +257,10 @@ function NovoEncordoamentoPage() {
           clienteId: clienteSelecionado.id,
           cordaId: cordaSelecionada,
           tensao,
+          tensaoCross: tipoEnc === 'hibrida' ? tensaoCross : null,
           preco: precoTotal,
-          observacoes: [observacoes, extras ? `Extras: ${extras}` : ''].filter(Boolean).join(' | '),
-          tipo: 'padrao',
+          observacoes: [observacoes, hibridaInfo, extras ? `Extras: ${extras}` : ''].filter(Boolean).join(' | '),
+          tipo: tipoEnc,
           entrega,
           enderecoEntrega: entrega === 'delivery' ? enderecoEntrega : '',
           taxaDelivery: precoDelivery,
@@ -273,6 +291,7 @@ function NovoEncordoamentoPage() {
   }
 
   const cordaSel = cordas.find(c => c.id === cordaSelecionada)
+  const cordaCrossSel = cordas.find(c => c.id === cordaCross)
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto animate-fadeIn">
@@ -344,35 +363,71 @@ function NovoEncordoamentoPage() {
                 </button>
               )}
 
-              {/* SEÇÃO: Corda */}
+              {/* SEÇÃO: Tipo de Encordoamento */}
               <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Corda</p>
-                <select
-                  value={cordaSelecionada}
-                  onChange={e => setCordaSelecionada(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none cursor-pointer font-medium"
-                >
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Tipo</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => { setTipoEnc('padrao'); setCordaCross('') }}
+                    className={`py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                      tipoEnc === 'padrao' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'
+                    }`}>
+                    Padrão
+                  </button>
+                  <button onClick={() => setTipoEnc('hibrida')}
+                    className={`py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                      tipoEnc === 'hibrida' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600'
+                    }`}>
+                    Híbrida
+                  </button>
+                </div>
+              </div>
+
+              {/* SEÇÃO: Corda Principal (Main) */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
+                  {tipoEnc === 'hibrida' ? 'Corda Principal (Mains)' : 'Corda'}
+                </p>
+                <select value={cordaSelecionada} onChange={e => setCordaSelecionada(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none cursor-pointer font-medium">
                   <option value="">Selecione a corda...</option>
                   {cordas.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome} — {c.marca} ({c.tipo}) · {formatCurrency(c.preco)}
-                    </option>
+                    <option key={c.id} value={c.id}>{c.nome} — {c.marca} ({c.tipo}) · {formatCurrency(c.preco)}</option>
                   ))}
                 </select>
                 {cordaSel && (
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
                     <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{cordaSel.marca}</span>
                     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cordaSel.tipo}</span>
                     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cordaSel.calibre}mm</span>
-                    <span className="ml-auto text-sm font-bold text-emerald-600">{formatCurrency(cordaSel.preco)}</span>
                   </div>
                 )}
               </div>
 
-              {/* SEÇÃO: Tensão */}
+              {/* SEÇÃO: Corda Cruzadas (Cross) - apenas em híbrida */}
+              {tipoEnc === 'hibrida' && (
+                <div>
+                  <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-2">Corda Cruzadas (Crosses)</p>
+                  <select value={cordaCross} onChange={e => setCordaCross(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-purple-200 text-sm outline-none focus:ring-2 focus:ring-purple-500 bg-white appearance-none cursor-pointer font-medium">
+                    <option value="">Selecione a corda cruzada...</option>
+                    {cordas.map(c => (
+                      <option key={c.id} value={c.id}>{c.nome} — {c.marca} ({c.tipo}) · {formatCurrency(c.preco)}</option>
+                    ))}
+                  </select>
+                  {cordaCrossSel && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">{cordaCrossSel.marca}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cordaCrossSel.tipo}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cordaCrossSel.calibre}mm</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SEÇÃO: Tensão Principal */}
               <div>
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-                  Tensão · <span className="text-gray-800 text-sm">{tensao} lbs</span>
+                  {tipoEnc === 'hibrida' ? 'Tensão Mains' : 'Tensão'} · <span className="text-gray-800 text-sm">{tensao} lbs</span>
                 </p>
                 <div className="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
                   {TENSOES_MAIN.map(t => (
@@ -381,13 +436,33 @@ function NovoEncordoamentoPage() {
                         tensao === t
                           ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
+                      }`}>
                       {t}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {/* SEÇÃO: Tensão Cruzadas - apenas em híbrida */}
+              {tipoEnc === 'hibrida' && (
+                <div>
+                  <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-2">
+                    Tensão Crosses · <span className="text-gray-800 text-sm">{tensaoCross} lbs</span>
+                  </p>
+                  <div className="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
+                    {TENSOES_MAIN.map(t => (
+                      <button key={t} onClick={() => setTensaoCross(t)}
+                        className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                          tensaoCross === t
+                            ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* SEÇÃO: Serviços Inclusos */}
               <div>
