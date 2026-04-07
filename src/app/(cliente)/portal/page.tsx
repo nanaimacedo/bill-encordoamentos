@@ -120,7 +120,7 @@ export default function PortalClientePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white px-4 py-6 text-center">
-        <img src="/logo.jpeg" alt="Bill Encordoamento Profissional" className="h-16 mx-auto mb-1 object-contain brightness-0 invert" />
+        <img src="/logo.jpeg" alt="Bill Encordoamento Profissional" className="w-48 mx-auto mb-1 object-contain brightness-0 invert" />
         <p className="text-gray-400 text-sm mt-1">Portal do Cliente</p>
       </div>
 

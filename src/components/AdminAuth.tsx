@@ -75,7 +75,7 @@ export default function AdminAuth({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm space-y-6">
           <div className="text-center space-y-4">
-            <img src="/logo.jpeg" alt="Bill Encordoamento Profissional" className="h-24 mx-auto object-contain" />
+            <img src="/logo.jpeg" alt="Bill Encordoamento Profissional" className="w-56 mx-auto object-contain" />
             <p className="text-sm text-gray-500">Acesso administrativo</p>
           </div>
 

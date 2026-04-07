@@ -47,8 +47,8 @@ export default function Sidebar() {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-r md:border-border md:bg-white">
         {/* Brand */}
-        <div className="flex items-center justify-center px-5 py-4 border-b border-border">
-          <img src="/logo.jpeg" alt="Bill Encordoamento Profissional" className="h-12 object-contain" />
+        <div className="flex items-center justify-center px-4 py-5 border-b border-border">
+          <img src="/logo.jpeg" alt="Bill Encordoamento Profissional" className="w-44 object-contain" />
         </div>
 
         {/* Navigation */}
