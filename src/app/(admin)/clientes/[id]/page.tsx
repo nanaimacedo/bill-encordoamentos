@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Phone, MapPin, Clock, DollarSign, QrCode, Plus, Download, Truck, Store } from 'lucide-react'
+import { ArrowLeft, Phone, MapPin, Clock, DollarSign, QrCode, Plus, Download, Truck, Store, Pencil } from 'lucide-react'
+import Link from 'next/link'
 import { formatCurrency, formatDate, daysSince } from '@/lib/utils'
 
 interface Encordoamento {
@@ -63,6 +64,8 @@ export default function ClienteDetailPage() {
   const [showAddRaquete, setShowAddRaquete] = useState(false)
   const [raqueteForm, setRaqueteForm] = useState({ marca: '', modelo: '' })
   const [raqueteQr, setRaqueteQr] = useState<{ img: string; marca: string; modelo: string } | null>(null)
+  const [showEditCliente, setShowEditCliente] = useState(false)
+  const [editForm, setEditForm] = useState({ nome: '', telefone: '', condominio: '', apartamento: '' })
 
   const carregar = () => {
     if (!params.id) return
@@ -112,6 +115,27 @@ export default function ClienteDetailPage() {
     }
   }
 
+  const abrirEditCliente = () => {
+    if (!cliente) return
+    setEditForm({
+      nome: cliente.nome,
+      telefone: cliente.telefone,
+      condominio: cliente.condominio || '',
+      apartamento: cliente.apartamento || '',
+    })
+    setShowEditCliente(true)
+  }
+
+  const salvarEditCliente = async () => {
+    await fetch(`/api/clientes/${params.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm),
+    })
+    setShowEditCliente(false)
+    carregar()
+  }
+
   if (loading) {
     return <div className="p-4"><div className="animate-pulse h-48 bg-white rounded-xl" /></div>
   }
@@ -122,6 +146,10 @@ export default function ClienteDetailPage() {
 
   const totalEmAberto = cliente.pagamentos
     .filter(p => p.status === 'pendente')
+    .reduce((sum, p) => sum + p.valor, 0)
+
+  const valorVitalicio = cliente.pagamentos
+    .filter(p => p.status === 'pago')
     .reduce((sum, p) => sum + p.valor, 0)
 
   const ultimoEnc = cliente.encordoamentos[0]
@@ -143,7 +171,12 @@ export default function ClienteDetailPage() {
       {/* Info + QR Code */}
       <div className="bg-white rounded-xl p-4 border border-gray-100 space-y-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800">{cliente.nome}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-800">{cliente.nome}</h1>
+            <button onClick={abrirEditCliente} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600" title="Editar cliente">
+              <Pencil className="w-4 h-4" />
+            </button>
+          </div>
           <button
             onClick={gerarQrCliente}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100"
@@ -181,6 +214,28 @@ export default function ClienteDetailPage() {
           <p className="text-lg font-bold text-gray-800">{frequencia ? `${frequencia}d` : '-'}</p>
           <p className="text-xs text-gray-500 uppercase">Freq. troca</p>
         </div>
+      </div>
+
+      {/* Valor Vitalício */}
+      <div className="bg-gradient-to-r from-emerald-500 to-emerald-700 rounded-xl p-4 text-white">
+        <p className="text-emerald-100 text-xs mb-1">Valor Vitalicio</p>
+        <p className="text-2xl font-bold">{formatCurrency(valorVitalicio)}</p>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex gap-2">
+        <Link
+          href={`/encordoamento?clienteId=${cliente.id}`}
+          className="flex-1 flex items-center justify-center gap-1 px-3 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700"
+        >
+          <Plus className="w-4 h-4" /> Novo Encordoamento
+        </Link>
+        <button
+          onClick={gerarQrCliente}
+          className="flex items-center gap-1 px-3 py-2.5 rounded-lg bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100"
+        >
+          <QrCode className="w-4 h-4" /> Gerar QR
+        </button>
       </div>
 
       {/* Sugestão */}
@@ -325,6 +380,43 @@ export default function ClienteDetailPage() {
             <div className="flex gap-2">
               <button onClick={() => setShowAddRaquete(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Cancelar</button>
               <button onClick={adicionarRaquete} className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700">Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Cliente */}
+      {showEditCliente && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="text-lg font-bold text-gray-800">Editar Cliente</h3>
+            <input
+              placeholder="Nome *"
+              value={editForm.nome}
+              onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <input
+              placeholder="Telefone *"
+              value={editForm.telefone}
+              onChange={e => setEditForm(p => ({ ...p, telefone: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <input
+              placeholder="Condominio"
+              value={editForm.condominio}
+              onChange={e => setEditForm(p => ({ ...p, condominio: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <input
+              placeholder="Apartamento"
+              value={editForm.apartamento}
+              onChange={e => setEditForm(p => ({ ...p, apartamento: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setShowEditCliente(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Cancelar</button>
+              <button onClick={salvarEditCliente} className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700">Salvar</button>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Package, Edit2, Trash2 } from 'lucide-react'
+import { Plus, Package, Edit2, Trash2, Search } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 interface Corda {
@@ -34,6 +34,8 @@ export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editando, setEditando] = useState<Corda | Produto | null>(null)
+  const [busca, setBusca] = useState('')
   const [formCorda, setFormCorda] = useState({
     nome: '', marca: '', tipo: 'monofilamento', calibre: '1.25', preco: 0, descricao: '', beneficios: '', estoque: 10
   })
@@ -55,26 +57,59 @@ export default function ProdutosPage() {
   }, [])
 
   const salvarCorda = async () => {
-    await fetch('/api/cordas', {
-      method: 'POST',
+    const isEdit = editando && 'marca' in editando
+    await fetch(isEdit ? `/api/cordas/${editando.id}` : '/api/cordas', {
+      method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formCorda),
     })
     setShowForm(false)
+    setEditando(null)
     setFormCorda({ nome: '', marca: '', tipo: 'monofilamento', calibre: '1.25', preco: 0, descricao: '', beneficios: '', estoque: 10 })
     carregarCordas()
   }
 
   const salvarProduto = async () => {
-    await fetch('/api/produtos', {
-      method: 'POST',
+    const isEdit = editando && 'categoria' in editando
+    await fetch(isEdit ? `/api/produtos/${editando.id}` : '/api/produtos', {
+      method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formProduto),
     })
     setShowForm(false)
+    setEditando(null)
     setFormProduto({ nome: '', categoria: 'grip', preco: 0, descricao: '', beneficios: '', estoque: 10 })
     carregarProdutos()
   }
+
+  const editarCorda = (c: Corda) => {
+    setEditando(c)
+    setFormCorda({ nome: c.nome, marca: c.marca, tipo: c.tipo, calibre: c.calibre, preco: c.preco, descricao: c.descricao, beneficios: c.beneficios, estoque: c.estoque })
+    setTab('cordas')
+    setShowForm(true)
+  }
+
+  const editarProduto = (p: Produto) => {
+    setEditando(p)
+    setFormProduto({ nome: p.nome, categoria: p.categoria, preco: p.preco, descricao: p.descricao, beneficios: p.beneficios, estoque: p.estoque })
+    setTab('produtos')
+    setShowForm(true)
+  }
+
+  const deletarCorda = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja remover esta corda?')) return
+    await fetch(`/api/cordas/${id}`, { method: 'DELETE' })
+    carregarCordas()
+  }
+
+  const deletarProduto = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja remover este produto?')) return
+    await fetch(`/api/produtos/${id}`, { method: 'DELETE' })
+    carregarProdutos()
+  }
+
+  const cordasFiltradas = cordas.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase()) || c.marca.toLowerCase().includes(busca.toLowerCase()))
+  const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || p.categoria.toLowerCase().includes(busca.toLowerCase()))
 
   const tipoLabels: Record<string, string> = {
     monofilamento: 'Mono', multifilamento: 'Multi', natural: 'Natural', hibrida: 'Híbrida'
@@ -85,7 +120,7 @@ export default function ProdutosPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Catálogo</h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setEditando(null); setFormCorda({ nome: '', marca: '', tipo: 'monofilamento', calibre: '1.25', preco: 0, descricao: '', beneficios: '', estoque: 10 }); setFormProduto({ nome: '', categoria: 'grip', preco: 0, descricao: '', beneficios: '', estoque: 10 }); setShowForm(true); }}
           className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
         >
           <Plus className="w-4 h-4" /> {tab === 'cordas' ? 'Nova Corda' : 'Novo Produto'}
@@ -108,23 +143,47 @@ export default function ProdutosPage() {
         </button>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Buscar por nome, marca ou categoria..."
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-green-500"
+        />
+      </div>
+
       {/* Cordas */}
       {tab === 'cordas' && (
         <div className="space-y-2">
-          {cordas.map(c => (
+          {cordasFiltradas.length === 0 && <p className="text-center text-gray-400 py-8 text-sm">Nenhuma corda encontrada</p>}
+          {cordasFiltradas.map(c => (
             <div key={c.id} className="bg-white rounded-xl p-4 border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm text-gray-800">{c.nome}</span>
                     <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{tipoLabels[c.tipo] || c.tipo}</span>
+                    {c.estoque < 5 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Estoque baixo!</span>}
                   </div>
                   <p className="text-xs text-gray-500">{c.marca} - {c.calibre}mm</p>
                   {c.descricao && <p className="text-xs text-gray-400 mt-1">{c.descricao}</p>}
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-green-600">{formatCurrency(c.preco)}</p>
-                  <p className="text-xs text-gray-400">Estoque: {c.estoque}</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="font-bold text-green-600">{formatCurrency(c.preco)}</p>
+                    <p className="text-xs text-gray-400">Estoque: {c.estoque}</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button onClick={() => editarCorda(c)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600" title="Editar">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => deletarCorda(c.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-600" title="Remover">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -135,20 +194,31 @@ export default function ProdutosPage() {
       {/* Produtos */}
       {tab === 'produtos' && (
         <div className="space-y-2">
-          {produtos.length === 0 && <p className="text-center text-gray-400 py-8 text-sm">Nenhum produto cadastrado</p>}
-          {produtos.map(p => (
+          {produtosFiltrados.length === 0 && <p className="text-center text-gray-400 py-8 text-sm">Nenhum produto encontrado</p>}
+          {produtosFiltrados.map(p => (
             <div key={p.id} className="bg-white rounded-xl p-4 border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm text-gray-800">{p.nome}</span>
                     <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full uppercase">{p.categoria}</span>
+                    {p.estoque < 5 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Estoque baixo!</span>}
                   </div>
                   {p.descricao && <p className="text-xs text-gray-400 mt-1">{p.descricao}</p>}
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-green-600">{formatCurrency(p.preco)}</p>
-                  <p className="text-xs text-gray-400">Estoque: {p.estoque}</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="font-bold text-green-600">{formatCurrency(p.preco)}</p>
+                    <p className="text-xs text-gray-400">Estoque: {p.estoque}</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button onClick={() => editarProduto(p)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600" title="Editar">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => deletarProduto(p.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-600" title="Remover">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -161,7 +231,7 @@ export default function ProdutosPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-3 max-h-[80vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-800">
-              {tab === 'cordas' ? 'Nova Corda' : 'Novo Produto'}
+              {editando ? (tab === 'cordas' ? 'Editar Corda' : 'Editar Produto') : (tab === 'cordas' ? 'Nova Corda' : 'Novo Produto')}
             </h3>
 
             {tab === 'cordas' ? (
@@ -196,7 +266,7 @@ export default function ProdutosPage() {
             )}
 
             <div className="flex gap-2 pt-2">
-              <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Cancelar</button>
+              <button onClick={() => { setShowForm(false); setEditando(null); setFormCorda({ nome: '', marca: '', tipo: 'monofilamento', calibre: '1.25', preco: 0, descricao: '', beneficios: '', estoque: 10 }); setFormProduto({ nome: '', categoria: 'grip', preco: 0, descricao: '', beneficios: '', estoque: 10 }); }} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Cancelar</button>
               <button onClick={tab === 'cordas' ? salvarCorda : salvarProduto} className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700">Salvar</button>
             </div>
           </div>

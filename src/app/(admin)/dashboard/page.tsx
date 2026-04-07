@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import {
-  BarChart3, DollarSign, TrendingUp, AlertCircle, Truck, Store, Users
+  BarChart3, DollarSign, TrendingUp, AlertCircle, Truck, Store, Users, AlertTriangle
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -34,6 +34,12 @@ interface DashboardData {
   }
 }
 
+interface EstoqueAlerta {
+  cordasBaixas: { id: string; nome: string; estoque: number }[]
+  produtosBaixos: { id: string; nome: string; estoque: number }[]
+  total: number
+}
+
 type Periodo = 'hoje' | 'semana' | 'mes' | 'ano' | 'consolidado'
 
 const CHART_COLORS = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0']
@@ -43,6 +49,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [periodoFat, setPeriodoFat] = useState<Periodo>('mes')
+  const [estoqueAlerta, setEstoqueAlerta] = useState<EstoqueAlerta | null>(null)
 
   useEffect(() => {
     fetch('/api/dashboard')
@@ -50,6 +57,11 @@ export default function DashboardPage() {
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false))
+
+    fetch('/api/inteligencia/estoque-alerta')
+      .then(res => res.json())
+      .then(setEstoqueAlerta)
+      .catch(console.error)
   }, [])
 
   if (loading) {
@@ -97,8 +109,30 @@ export default function DashboardPage() {
     <div className="p-4 md:p-6 space-y-6 animate-fadeIn">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 font-heading">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Visão geral do seu negócio</p>
+        <p className="text-sm text-gray-500 mt-1">Visao geral do seu negocio</p>
       </div>
+
+      {/* Stock Alert Banner */}
+      {estoqueAlerta && estoqueAlerta.total > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <span className="font-semibold text-red-800 text-sm">{estoqueAlerta.total} {estoqueAlerta.total === 1 ? 'item' : 'itens'} com estoque baixo</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {estoqueAlerta.cordasBaixas.map(c => (
+              <span key={c.id} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                {c.nome} ({c.estoque})
+              </span>
+            ))}
+            {estoqueAlerta.produtosBaixos.map(p => (
+              <span key={p.id} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                {p.nome} ({p.estoque})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
