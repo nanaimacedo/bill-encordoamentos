@@ -110,6 +110,8 @@ function NovoEncordoamentoPage() {
   const [tensao, setTensao] = useState<number>(55) // main
   const [tensaoCross, setTensaoCross] = useState<number>(53) // cruzadas
   const [preco, setPreco] = useState<number>(0)
+  const [desconto, setDesconto] = useState<number>(0)
+  const [valorExtra, setValorExtra] = useState<number>(0) // caixinha / valor avulso
   const [observacoes, setObservacoes] = useState('')
   const [entrega, setEntrega] = useState<'retirada' | 'delivery'>('retirada')
   const [enderecoEntrega, setEnderecoEntrega] = useState('')
@@ -205,7 +207,8 @@ function NovoEncordoamentoPage() {
   const totalExtras = totalSimples + totalMarca
   const precoServico = preco
   const precoDelivery = entrega === 'delivery' ? taxaDelivery : 0
-  const precoTotal = precoServico + totalExtras + precoDelivery
+  const subtotal = precoServico + totalExtras + precoDelivery + valorExtra
+  const precoTotal = Math.max(0, subtotal - desconto)
 
   const repetirUltimo = () => {
     if (!lastEnc) return
@@ -229,6 +232,8 @@ function NovoEncordoamentoPage() {
     setTensao(55)
     setTensaoCross(53)
     setPreco(0)
+    setDesconto(0)
+    setValorExtra(0)
     setObservacoes('')
     setEntrega('retirada')
     setEnderecoEntrega('')
@@ -601,6 +606,31 @@ function NovoEncordoamentoPage() {
                 )}
               </div>
 
+              {/* SEÇÃO: Valor Extra + Desconto */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Ajustes de Valor</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Valor extra (avulso)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs text-gray-400">R$</span>
+                      <input type="number" step="0.01" value={valorExtra || ''} onChange={e => setValorExtra(Number(e.target.value) || 0)}
+                        placeholder="0,00"
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-red-500 mb-1 block">Desconto</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs text-red-400">-R$</span>
+                      <input type="number" step="0.01" value={desconto || ''} onChange={e => setDesconto(Number(e.target.value) || 0)}
+                        placeholder="0,00"
+                        className="w-full pl-11 pr-3 py-2.5 rounded-xl border border-red-200 text-sm outline-none focus:ring-2 focus:ring-red-400 text-red-600" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* SEÇÃO: Observações */}
               <div>
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Observações</p>
@@ -638,6 +668,18 @@ function NovoEncordoamentoPage() {
                   <div className="flex justify-between text-orange-600">
                     <span>Delivery</span>
                     <span>+{formatCurrency(precoDelivery)}</span>
+                  </div>
+                )}
+                {valorExtra > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Valor extra</span>
+                    <span>+{formatCurrency(valorExtra)}</span>
+                  </div>
+                )}
+                {desconto > 0 && (
+                  <div className="flex justify-between text-red-500">
+                    <span>Desconto</span>
+                    <span>-{formatCurrency(desconto)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-gray-900 text-base pt-1.5 border-t border-gray-200">
