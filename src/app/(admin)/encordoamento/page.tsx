@@ -141,14 +141,15 @@ function NovoEncordoamentoPage() {
   }, [searchParams])
 
   const buscarClientes = useCallback(async (q: string) => {
-    if (q.length < 1) { setClientes([]); return }
     const res = await fetch(`/api/clientes?q=${encodeURIComponent(q)}`)
     setClientes(await res.json())
   }, [])
 
+  // Carregar últimos clientes e cordas ao abrir
   useEffect(() => {
     fetch('/api/cordas').then(r => r.json()).then(setCordas)
-  }, [])
+    buscarClientes('') // carrega todos os clientes
+  }, [buscarClientes])
 
   useEffect(() => {
     const t = setTimeout(() => buscarClientes(busca), 200)
@@ -328,17 +329,25 @@ function NovoEncordoamentoPage() {
       </div>
 
       {clientes.length > 0 && !showModal && (
-        <div className="bg-white rounded-xl border border-gray-200 divide-y max-h-60 overflow-y-auto shadow-sm">
-          {clientes.map(c => (
-            <button
-              key={c.id}
-              onClick={() => selecionarCliente(c)}
-              className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors"
-            >
-              <p className="font-medium text-sm text-gray-800">{c.nome}</p>
-              <p className="text-xs text-gray-500">{c.telefone}</p>
-            </button>
-          ))}
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            {busca ? `Resultados para "${busca}"` : 'Clientes recentes'}
+          </p>
+          <div className="bg-white rounded-xl border border-gray-200 divide-y max-h-[50vh] overflow-y-auto shadow-sm">
+            {clientes.map(c => (
+              <button
+                key={c.id}
+                onClick={() => selecionarCliente(c)}
+                className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors flex items-center justify-between"
+              >
+                <div>
+                  <p className="font-medium text-sm text-gray-800">{c.nome}</p>
+                  <p className="text-xs text-gray-500">{c.telefone}</p>
+                </div>
+                <span className="text-xs text-emerald-600 font-medium">Selecionar</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
