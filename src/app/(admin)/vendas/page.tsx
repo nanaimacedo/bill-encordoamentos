@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter } from 'lucide-react'
+import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import Link from 'next/link'
@@ -100,6 +100,21 @@ export default function VendasPage() {
     a.download = `relatorio_vendas_${periodo}_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const marcarPago = async (pagamentoId: string, forma: string) => {
+    try {
+      const res = await fetch(`/api/pagamentos/${pagamentoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'pago', formaPagamento: forma }),
+      })
+      if (!res.ok) throw new Error('Falha ao atualizar')
+      toast({ title: 'Pagamento confirmado!', type: 'success' })
+      carregar()
+    } catch {
+      toast({ title: 'Erro ao confirmar pagamento', type: 'error' })
+    }
   }
 
   const getStatusIcon = (venda: Venda) => {
@@ -259,14 +274,34 @@ export default function VendasPage() {
                   </p>
                 </div>
               </div>
-              {/* Ação rápida: refazer venda */}
-              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50">
-                <Link
-                  href={`/encordoamento?clienteId=${v.cliente.id}`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors"
-                >
-                  <RotateCcw className="w-3 h-3" /> Nova venda p/ {v.cliente.nome.split(' ')[0]}
-                </Link>
+              {/* Ações: pagamento (se pendente) + nova venda */}
+              <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
+                {/* Botões de pagamento — só para vendas pendentes */}
+                {v.pagamento && v.pagamento.status === 'pendente' && (
+                  <div className="flex gap-2">
+                    <button onClick={() => marcarPago(v.pagamento!.id, 'pix')}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
+                      <Smartphone className="w-3.5 h-3.5" /> PIX
+                    </button>
+                    <button onClick={() => marcarPago(v.pagamento!.id, 'dinheiro')}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
+                      <Banknote className="w-3.5 h-3.5" /> Dinheiro
+                    </button>
+                    <button onClick={() => marcarPago(v.pagamento!.id, 'cartao')}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
+                      <CreditCard className="w-3.5 h-3.5" /> Cartão
+                    </button>
+                  </div>
+                )}
+                {/* Ação rápida: refazer venda */}
+                <div className="flex gap-2">
+                  <Link
+                    href={`/encordoamento?clienteId=${v.cliente.id}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Nova venda p/ {v.cliente.nome.split(' ')[0]}
+                  </Link>
+                </div>
               </div>
             </div>
           ))}

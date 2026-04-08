@@ -14,10 +14,21 @@ export async function GET() {
     // Total encordoamentos (all time)
     const totalEncordoamentos = await prisma.encordoamento.count()
 
-    // Total encordoamentos this month
-    const totalEncordoamentosMes = await prisma.encordoamento.count({
+    // Contagens por período
+    const [totalEncordoamentosMes, vendasHoje, vendasSemana, vendasMes] = await Promise.all([
+      prisma.encordoamento.count({ where: { createdAt: { gte: startOfMonth } } }),
+      prisma.encordoamento.count({ where: { createdAt: { gte: startOfToday } } }),
+      prisma.encordoamento.count({ where: { createdAt: { gte: startOfWeek } } }),
+      prisma.encordoamento.count({ where: { createdAt: { gte: startOfMonth } } }),
+    ])
+
+    // Clientes novos este mês
+    const clientesNovosMes = await prisma.cliente.count({
       where: { createdAt: { gte: startOfMonth } },
     })
+
+    // Total de clientes
+    const totalClientes = await prisma.cliente.count()
 
     // Faturamento - pagamentos pagos por periodo
     const [fatHoje, fatSemana, fatMes, fatAno, fatConsolidado] = await Promise.all([
@@ -68,6 +79,11 @@ export async function GET() {
     })
     const totalEmAberto = Number(totalEmAbertoAgg._sum.valor || 0)
 
+    // Contagem de pagamentos pendentes
+    const totalPagamentosPendentes = await prisma.pagamento.count({
+      where: { status: 'pendente' },
+    })
+
     // Top cordas (mais usadas, top 5)
     const topCordas = await prisma.encordoamento.groupBy({
       by: ['cordaId'],
@@ -89,29 +105,30 @@ export async function GET() {
       })
     )
 
-    // Encordoamentos por dia (ultimos 30 dias)
+    // Encordoamentos por dia (ultimos 30 dias) — com faturamento
     const encordoamentosUltimos30 = await prisma.encordoamento.findMany({
       where: { createdAt: { gte: trintaDiasAtras } },
-      select: { createdAt: true },
+      select: { createdAt: true, preco: true },
       orderBy: { createdAt: 'asc' },
     })
 
-    const encordoamentosPorDiaMap: Record<string, number> = {}
+    const encordoamentosPorDiaMap: Record<string, { count: number; receita: number }> = {}
     for (let i = 0; i < 30; i++) {
       const dia = new Date(trintaDiasAtras.getTime() + i * 24 * 60 * 60 * 1000)
       const chave = dia.toISOString().split('T')[0]
-      encordoamentosPorDiaMap[chave] = 0
+      encordoamentosPorDiaMap[chave] = { count: 0, receita: 0 }
     }
 
     encordoamentosUltimos30.forEach((enc) => {
       const chave = enc.createdAt.toISOString().split('T')[0]
       if (encordoamentosPorDiaMap[chave] !== undefined) {
-        encordoamentosPorDiaMap[chave]++
+        encordoamentosPorDiaMap[chave].count++
+        encordoamentosPorDiaMap[chave].receita += enc.preco
       }
     })
 
     const encordoamentosPorDia = Object.entries(encordoamentosPorDiaMap).map(
-      ([date, count]) => ({ date, count })
+      ([date, data]) => ({ date, count: data.count, receita: data.receita })
     )
 
     // Delivery stats
@@ -165,6 +182,12 @@ export async function GET() {
 
     return Response.json({
       totalEncordoamentos,
+      vendasHoje,
+      vendasSemana,
+      vendasMes,
+      clientesNovosMes,
+      totalClientes,
+      totalPagamentosPendentes,
       faturamento,
       ticketMedio,
       totalEmAberto,

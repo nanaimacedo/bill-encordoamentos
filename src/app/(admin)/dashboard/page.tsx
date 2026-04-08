@@ -2,16 +2,24 @@
 
 import { useEffect, useState } from 'react'
 import {
-  BarChart3, DollarSign, TrendingUp, AlertCircle, Truck, Store, Users, AlertTriangle
+  BarChart3, DollarSign, TrendingUp, AlertCircle, Truck, Store, Users, AlertTriangle,
+  ShoppingBag, UserPlus, Clock, CalendarDays
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
+import Link from 'next/link'
 
 interface DashboardData {
   totalEncordoamentos: number
+  vendasHoje: number
+  vendasSemana: number
+  vendasMes: number
+  clientesNovosMes: number
+  totalClientes: number
+  totalPagamentosPendentes: number
   faturamento: {
     hoje: number
     semana: number
@@ -26,7 +34,7 @@ interface DashboardData {
   totalEmAberto: number
   topCordas: { nome: string; count: number }[]
   topClientes: { nome: string; telefone: string; faturamento: number; servicos: number }[]
-  encordoamentosPorDia: { date: string; count: number }[]
+  encordoamentosPorDia: { date: string; count: number; receita: number }[]
   deliveryStats: { totalDelivery: number; totalRetirada: number }
   centroReceita: {
     loja: { faturamento: number; total: number }
@@ -50,6 +58,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [periodoFat, setPeriodoFat] = useState<Periodo>('mes')
   const [estoqueAlerta, setEstoqueAlerta] = useState<EstoqueAlerta | null>(null)
+  const [chartMode, setChartMode] = useState<'count' | 'receita'>('count')
 
   useEffect(() => {
     fetch('/api/dashboard')
@@ -107,9 +116,15 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 animate-fadeIn">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 font-heading">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Visao geral do seu negocio</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 font-heading">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Visão geral do seu negócio</p>
+        </div>
+        <Link href="/vendas"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors">
+          <ShoppingBag className="w-4 h-4" /> Ver Vendas
+        </Link>
       </div>
 
       {/* Stock Alert Banner */}
@@ -134,56 +149,96 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Resumo rápido do dia */}
+      <div className="bg-gradient-to-r from-emerald-500 to-emerald-700 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-emerald-100 text-xs font-medium uppercase tracking-wider">Hoje</p>
+            <p className="text-3xl font-bold font-heading mt-1">{formatCurrency(data.faturamento.hoje)}</p>
+          </div>
+          <div className="text-right">
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-emerald-200 text-xs">Vendas</p>
+                <p className="text-xl font-bold">{data.vendasHoje}</p>
+              </div>
+              <div>
+                <p className="text-emerald-200 text-xs">Pendentes</p>
+                <p className="text-xl font-bold">{data.totalPagamentosPendentes}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 pt-3 border-t border-white/20">
+          <div>
+            <p className="text-emerald-200 text-[10px] uppercase">Semana</p>
+            <p className="text-sm font-bold">{data.vendasSemana} vendas · {formatCurrency(data.faturamento.semana)}</p>
+          </div>
+          <div>
+            <p className="text-emerald-200 text-[10px] uppercase">Mês</p>
+            <p className="text-sm font-bold">{data.vendasMes} vendas · {formatCurrency(data.faturamento.mes)}</p>
+          </div>
+          <div>
+            <p className="text-emerald-200 text-[10px] uppercase">Em aberto</p>
+            <p className="text-sm font-bold text-red-200">{formatCurrency(data.totalEmAberto)}</p>
+          </div>
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 rounded-xl bg-white/20"><DollarSign className="w-5 h-5" /></div>
-            <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">{periodoLabels[periodoFat]}</span>
-          </div>
-          <p className="text-emerald-100 text-xs mb-1">Faturamento</p>
-          <p className="text-2xl font-bold font-heading">{formatCurrency(data.faturamento[periodoFat])}</p>
-        </div>
-
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="mb-3"><div className="p-2 rounded-xl bg-blue-50 w-fit"><BarChart3 className="w-5 h-5 text-blue-600" /></div></div>
-          <p className="text-gray-500 text-xs mb-1">Encordoamentos</p>
+          <p className="text-gray-500 text-xs mb-1">Total Encordoamentos</p>
           <p className="text-2xl font-bold text-gray-900 font-heading">{data.totalEncordoamentos}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="mb-3"><div className="p-2 rounded-xl bg-purple-50 w-fit"><TrendingUp className="w-5 h-5 text-purple-600" /></div></div>
-          <p className="text-gray-500 text-xs mb-1">Ticket Médio</p>
+          <p className="text-gray-500 text-xs mb-1">Ticket Médio (Mês)</p>
           <p className="text-2xl font-bold text-gray-900 font-heading">{formatCurrency(data.ticketMedio.mes)}</p>
           <p className="text-xs text-gray-400 mt-1">Geral: {formatCurrency(data.ticketMedio.geral)}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <div className="mb-3"><div className="p-2 rounded-xl bg-red-50 w-fit"><AlertCircle className="w-5 h-5 text-red-500" /></div></div>
-          <p className="text-gray-500 text-xs mb-1">Em Aberto</p>
-          <p className="text-2xl font-bold text-red-600 font-heading">{formatCurrency(data.totalEmAberto)}</p>
+          <div className="mb-3"><div className="p-2 rounded-xl bg-cyan-50 w-fit"><Users className="w-5 h-5 text-cyan-600" /></div></div>
+          <p className="text-gray-500 text-xs mb-1">Clientes</p>
+          <p className="text-2xl font-bold text-gray-900 font-heading">{data.totalClientes}</p>
+          {data.clientesNovosMes > 0 && (
+            <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+              <UserPlus className="w-3 h-3" /> +{data.clientesNovosMes} este mês
+            </p>
+          )}
         </div>
-      </div>
 
-      {/* Period Selector */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 max-w-md">
-        {(Object.keys(periodoLabels) as Periodo[]).map(p => (
-          <button key={p} onClick={() => setPeriodoFat(p)}
-            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-              periodoFat === p ? 'bg-white text-emerald-700 shadow-sm font-semibold' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {periodoLabels[p]}
-          </button>
-        ))}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="mb-3"><div className="p-2 rounded-xl bg-amber-50 w-fit"><DollarSign className="w-5 h-5 text-amber-600" /></div></div>
+          <p className="text-gray-500 text-xs mb-1">Faturamento Ano</p>
+          <p className="text-2xl font-bold text-gray-900 font-heading">{formatCurrency(data.faturamento.ano)}</p>
+          <p className="text-xs text-gray-400 mt-1">Total: {formatCurrency(data.faturamento.consolidado)}</p>
+        </div>
       </div>
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold text-gray-800 font-heading">Encordoamentos</h2>
-            <p className="text-xs text-gray-400">Últimos 30 dias</p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-800 font-heading">
+                {chartMode === 'count' ? 'Encordoamentos' : 'Receita'}
+              </h2>
+              <p className="text-xs text-gray-400">Últimos 30 dias</p>
+            </div>
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+              <button onClick={() => setChartMode('count')}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  chartMode === 'count' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+                }`}>Qtd</button>
+              <button onClick={() => setChartMode('receita')}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  chartMode === 'receita' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+                }`}>R$</button>
+            </div>
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -196,10 +251,15 @@ export default function DashboardPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false}
+                  tickFormatter={chartMode === 'receita' ? (v) => `R$${v}` : undefined} />
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
-                  formatter={(value: unknown) => [String(value), 'Encordoamentos']} labelFormatter={(l) => `Data: ${l}`} />
-                <Area type="monotone" dataKey="count" stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorCount)" />
+                  formatter={(value: unknown) => [
+                    chartMode === 'receita' ? formatCurrency(Number(value)) : String(value),
+                    chartMode === 'receita' ? 'Receita' : 'Encordoamentos'
+                  ]}
+                  labelFormatter={(l) => `Data: ${l}`} />
+                <Area type="monotone" dataKey={chartMode === 'receita' ? 'receita' : 'count'} stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorCount)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -225,14 +285,14 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-600" />
               <div>
-                <p className="text-xs text-gray-500">Loja</p>
+                <p className="text-xs text-gray-500">Loja ({data.centroReceita.loja.total})</p>
                 <p className="text-sm font-semibold">{formatCurrency(data.centroReceita.loja.faturamento)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-orange-500" />
               <div>
-                <p className="text-xs text-gray-500">Delivery</p>
+                <p className="text-xs text-gray-500">Delivery ({data.centroReceita.delivery.total})</p>
                 <p className="text-sm font-semibold">{formatCurrency(data.centroReceita.delivery.faturamento)}</p>
               </div>
             </div>
@@ -355,9 +415,9 @@ export default function DashboardPage() {
           <p className="text-lg font-bold text-gray-900 font-heading">{data.centroReceita.delivery.total}</p>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <Users className="w-5 h-5 text-blue-500 mx-auto mb-2" />
-          <p className="text-xs text-gray-500">Total Serviços</p>
-          <p className="text-lg font-bold text-gray-900 font-heading">{data.totalEncordoamentos}</p>
+          <Clock className="w-5 h-5 text-red-500 mx-auto mb-2" />
+          <p className="text-xs text-gray-500">Pgtos Pendentes</p>
+          <p className="text-lg font-bold text-red-600 font-heading">{data.totalPagamentosPendentes}</p>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
           <TrendingUp className="w-5 h-5 text-purple-500 mx-auto mb-2" />
