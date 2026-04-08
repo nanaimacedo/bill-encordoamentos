@@ -150,7 +150,7 @@ export default function FinanceiroPage() {
                   <p className="font-medium text-sm text-gray-800">{p.cliente.nome}</p>
                   {p.encordoamento && (
                     <p className="text-xs text-gray-500">
-                      {p.encordoamento.corda.nome} - {p.encordoamento.tensao}lbs
+                      {p.encordoamento.corda?.nome || 'Venda avulsa'} {p.encordoamento.tensao ? `- ${p.encordoamento.tensao}lbs` : ''}
                     </p>
                   )}
                   <p className="text-xs text-gray-400">{formatDate(p.createdAt)}</p>

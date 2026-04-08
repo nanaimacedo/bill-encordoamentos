@@ -462,7 +462,7 @@ export default function LocalizacaoPage() {
             <option value="">Selecione um encordoamento...</option>
             {encordoamentos.map((enc) => (
               <option key={enc.id} value={enc.id}>
-                {enc.cliente.nome} - {enc.corda.nome} ({enc.status})
+                {enc.cliente?.nome || 'Cliente'} - {enc.corda?.nome || 'Avulsa'} ({enc.status})
               </option>
             ))}
           </select>
@@ -470,9 +470,9 @@ export default function LocalizacaoPage() {
 
         {selectedEncData && (
           <div className="mb-4 p-3 bg-background-secondary rounded-lg">
-            <p className="font-medium text-foreground">{selectedEncData.cliente.nome}</p>
+            <p className="font-medium text-foreground">{selectedEncData.cliente?.nome || 'Cliente'}</p>
             <p className="text-sm text-foreground-muted">
-              Corda: {selectedEncData.corda.nome} | Tensão: {selectedEncData.tensao}lbs | Status: {selectedEncData.status}
+              Corda: {selectedEncData.corda?.nome || 'Avulsa'} | Tensão: {selectedEncData.tensao}lbs | Status: {selectedEncData.status}
             </p>
           </div>
         )}

@@ -406,7 +406,7 @@ export default function ComunidadePerfisPage() {
                     <UserCircle className="w-8 h-8 text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-800 truncate">{p.cliente.nome}</h3>
+                    <h3 className="font-semibold text-gray-800 truncate">{p.cliente?.nome || 'Cliente'}</h3>
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${nivelColor[p.nivel] || 'bg-gray-100 text-gray-600'}`}>
                       {p.nivel.charAt(0).toUpperCase() + p.nivel.slice(1)}
                     </span>
@@ -467,7 +467,7 @@ export default function ComunidadePerfisPage() {
                       <UserCircle className="w-8 h-8 text-green-400" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-800">{p.cliente.nome}</h3>
+                      <h3 className="font-semibold text-gray-800">{p.cliente?.nome || 'Cliente'}</h3>
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${nivelColor[p.nivel] || 'bg-gray-100 text-gray-600'}`}>
                         {p.nivel}
                       </span>
@@ -519,7 +519,7 @@ export default function ComunidadePerfisPage() {
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
               >
                 <option value="">Selecione um perfil...</option>
-                {perfis.map(p => <option key={p.id} value={p.id}>{p.cliente.nome}</option>)}
+                {perfis.map(p => <option key={p.id} value={p.id}>{p.cliente?.nome || 'Cliente'}</option>)}
               </select>
             </div>
           </div>
@@ -538,7 +538,7 @@ export default function ComunidadePerfisPage() {
                   >
                     <option value="">Selecione...</option>
                     {perfis.filter(p => p.id !== conviteRemetenteId).map(p => (
-                      <option key={p.id} value={p.id}>{p.cliente.nome}</option>
+                      <option key={p.id} value={p.id}>{p.cliente?.nome || 'Cliente'}</option>
                     ))}
                   </select>
                 </div>
@@ -589,9 +589,9 @@ export default function ComunidadePerfisPage() {
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-800">
                         {enviado ? (
-                          <>Voce convidou <span className="text-green-600">{c.destinatario.cliente.nome}</span></>
+                          <>Voce convidou <span className="text-green-600">{c.destinatario?.cliente?.nome || 'Jogador'}</span></>
                         ) : (
-                          <><span className="text-green-600">{c.remetente.cliente.nome}</span> te convidou</>
+                          <><span className="text-green-600">{c.remetente?.cliente?.nome || 'Jogador'}</span> te convidou</>
                         )}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -836,8 +836,8 @@ export default function ComunidadePerfisPage() {
               <div key={a.id} className="bg-white rounded-xl p-4 border border-gray-100">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-800">{a.cliente.nome}</p>
-                    <p className="text-xs text-gray-500">{a.corda.marca} - {a.corda.nome}</p>
+                    <p className="text-sm font-medium text-gray-800">{a.cliente?.nome || 'Cliente'}</p>
+                    <p className="text-xs text-gray-500">{a.corda?.marca || ''} - {a.corda?.nome || 'Avulsa'}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     {renderStars(a.nota)}

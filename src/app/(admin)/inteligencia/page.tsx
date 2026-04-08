@@ -166,13 +166,13 @@ function TabRecomendacoes() {
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {recomendacoes.map((rec) => (
             <div
-              key={rec.corda.id}
+              key={rec.corda?.id || rec.motivo}
               className="bg-white rounded-xl border border-border p-4 space-y-3"
             >
               <div>
-                <h3 className="font-semibold text-foreground">{rec.corda.nome}</h3>
+                <h3 className="font-semibold text-foreground">{rec.corda?.nome || 'Corda'}</h3>
                 <p className="text-xs text-foreground-muted">
-                  {rec.corda.marca} &middot; {rec.corda.tipo} &middot; {rec.corda.calibre}
+                  {rec.corda?.marca || ''} &middot; {rec.corda?.tipo || ''} &middot; {rec.corda?.calibre || ''}
                 </p>
               </div>
 
@@ -198,7 +198,7 @@ function TabRecomendacoes() {
                   </span>
                 </div>
                 <span className="text-sm font-semibold text-green-600">
-                  R$ {rec.corda.preco.toFixed(2)}
+                  R$ {rec.corda?.preco?.toFixed(2) || '0.00'}
                 </span>
               </div>
             </div>
@@ -460,12 +460,12 @@ function TabChurn() {
 
             return (
               <div
-                key={item.cliente.id}
+                key={item.cliente?.id || item.diasSemVoltar}
                 className="bg-white rounded-xl border border-border p-4 flex flex-col md:flex-row md:items-center gap-3"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-foreground">{item.cliente.nome}</h3>
+                    <h3 className="font-semibold text-foreground">{item.cliente?.nome || 'Cliente'}</h3>
                     <span
                       className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                         isHigh
@@ -476,7 +476,7 @@ function TabChurn() {
                       {isHigh ? 'Alto risco' : 'Médio risco'}
                     </span>
                   </div>
-                  <p className="text-xs text-foreground-muted mt-0.5">{item.cliente.telefone}</p>
+                  <p className="text-xs text-foreground-muted mt-0.5">{item.cliente?.telefone || ''}</p>
                 </div>
 
                 <div className="flex flex-wrap gap-4 text-xs">
