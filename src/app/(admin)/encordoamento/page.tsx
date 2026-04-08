@@ -402,25 +402,57 @@ function NovoEncordoamentoPage() {
                 </div>
               </div>
 
-              {/* SEÇÃO: Corda Principal (Main) */}
+              {/* SEÇÃO: Cordas */}
               <div>
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-                  {tipoEnc === 'hibrida' ? 'Corda Principal (Mains)' : 'Corda'}
+                  {tipoEnc === 'hibrida' ? 'Corda Principal (Mains)' : 'Cordas'}
+                  {Object.keys(cordasExtras).length > 0 && (
+                    <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full ml-1">
+                      {Object.values(cordasExtras).reduce((s, c) => s + c.qtd, 0)} un
+                    </span>
+                  )}
                 </p>
-                <select value={cordaSelecionada} onChange={e => setCordaSelecionada(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none cursor-pointer font-medium">
-                  <option value="">Selecione a corda...</option>
-                  {cordas.map(c => (
-                    <option key={c.id} value={c.id}>{c.nome} — {c.marca} ({c.tipo}) · {formatCurrency(c.preco)}</option>
-                  ))}
-                </select>
-                {cordaSel && (
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{cordaSel.marca}</span>
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cordaSel.tipo}</span>
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cordaSel.calibre}mm</span>
-                  </div>
-                )}
+                <input type="text" value={buscaCorda} onChange={e => setBuscaCorda(e.target.value)}
+                  placeholder="Buscar corda..."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2" />
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {cordas
+                    .filter(c => !buscaCorda || c.nome.toLowerCase().includes(buscaCorda.toLowerCase()) || c.marca.toLowerCase().includes(buscaCorda.toLowerCase()))
+                    .map(c => {
+                      const sel = cordasExtras[c.id]
+                      const isMain = cordaSelecionada === c.id
+                      return (
+                        <div key={c.id}
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
+                            isMain ? 'bg-emerald-100 border-emerald-500 text-emerald-800' :
+                            sel ? 'bg-emerald-50 border-emerald-400 text-emerald-700' :
+                            'bg-gray-50 border-gray-200 text-gray-600'
+                          }`}>
+                          <button className="truncate flex-1 min-w-0 text-left"
+                            onClick={() => { setCordaSelecionada(c.id); setPreco(c.preco) }}>
+                            <span>{c.nome}</span>
+                            <span className="text-xs text-gray-400 ml-1">- {c.marca}</span>
+                            {isMain && <span className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded ml-1.5">encordoar</span>}
+                          </button>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <span className="text-xs font-semibold">{formatCurrency(c.preco)}</span>
+                            {sel ? (
+                              <div className="flex items-center gap-1 bg-white rounded-lg border border-emerald-300 px-1">
+                                <button onClick={() => removeCordaExtra(c.id)}
+                                  className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded font-bold text-sm">-</button>
+                                <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
+                                <button onClick={() => addCordaExtra(c.id, c.preco)}
+                                  className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded font-bold text-sm">+</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => addCordaExtra(c.id, c.preco)}
+                                className="w-6 h-6 flex items-center justify-center bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">+</button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
               </div>
 
               {/* SEÇÃO: Corda Cruzadas (Cross) - apenas em híbrida */}
@@ -483,50 +515,6 @@ function NovoEncordoamentoPage() {
                   </div>
                 </div>
               )}
-
-              {/* SEÇÃO: Cordas Avulsas (venda sem encordoar) */}
-              <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-                  Cordas (venda avulsa) {Object.keys(cordasExtras).length > 0 && (
-                    <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full ml-1">
-                      {Object.values(cordasExtras).reduce((s, c) => s + c.qtd, 0)} un
-                    </span>
-                  )}
-                </p>
-                <input type="text" value={buscaCorda} onChange={e => setBuscaCorda(e.target.value)}
-                  placeholder="Buscar corda..."
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2" />
-                <div className="max-h-40 overflow-y-auto space-y-1">
-                  {cordas
-                    .filter(c => !buscaCorda || c.nome.toLowerCase().includes(buscaCorda.toLowerCase()) || c.marca.toLowerCase().includes(buscaCorda.toLowerCase()))
-                    .map(c => {
-                      const sel = cordasExtras[c.id]
-                      return (
-                        <div key={c.id}
-                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
-                            sel ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-600'
-                          }`}>
-                          <span className="truncate flex-1 min-w-0">{c.nome} <span className="text-xs text-gray-400">- {c.marca}</span></span>
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <span className="text-xs font-semibold">{formatCurrency(c.preco)}</span>
-                            {sel ? (
-                              <div className="flex items-center gap-1 bg-white rounded-lg border border-emerald-300 px-1">
-                                <button onClick={() => removeCordaExtra(c.id)}
-                                  className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded font-bold text-sm">-</button>
-                                <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
-                                <button onClick={() => addCordaExtra(c.id, c.preco)}
-                                  className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded font-bold text-sm">+</button>
-                              </div>
-                            ) : (
-                              <button onClick={() => addCordaExtra(c.id, c.preco)}
-                                className="w-6 h-6 flex items-center justify-center bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">+</button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                </div>
-              </div>
 
               {/* SEÇÃO: Inclusos */}
               <div>
