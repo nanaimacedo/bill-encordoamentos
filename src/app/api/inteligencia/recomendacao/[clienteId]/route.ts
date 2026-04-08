@@ -22,7 +22,9 @@ export async function GET(
     // Count usage per corda
     const usoPorCorda: Record<string, number> = {}
     for (const enc of historico) {
-      usoPorCorda[enc.cordaId] = (usoPorCorda[enc.cordaId] || 0) + 1
+      if (enc.cordaId) {
+        usoPorCorda[enc.cordaId] = (usoPorCorda[enc.cordaId] || 0) + 1
+      }
     }
 
     // Determine recommendation criteria

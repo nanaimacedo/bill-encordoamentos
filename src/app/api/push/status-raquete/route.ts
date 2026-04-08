@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         clienteId: encordoamento.clienteId,
         tipo: 'status_raquete',
         titulo: msg.titulo,
-        mensagem: `${msg.mensagem} (${encordoamento.corda.nome})`,
+        mensagem: `${msg.mensagem} (${encordoamento.corda?.nome || 'Venda avulsa'})`,
         canal: 'push',
       },
     })
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     if (subs.length > 0) {
       const payload = JSON.stringify({
         title: msg.titulo,
-        body: `${msg.mensagem} (${encordoamento.corda.nome})`,
+        body: `${msg.mensagem} (${encordoamento.corda?.nome || 'Venda'})`,
         url: '/',
       })
 
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         id: encordoamento.id,
         status: encordoamento.status,
         cliente: encordoamento.cliente.nome,
-        corda: encordoamento.corda.nome,
+        corda: encordoamento.corda?.nome || 'Venda',
       },
       notificacao: msg,
     })

@@ -71,6 +71,7 @@ function NovoEncordoamentoPage() {
   const [enderecoEntrega, setEnderecoEntrega] = useState('')
   const [taxaDelivery, setTaxaDelivery] = useState<number>(10)
   const [servicosInclusos, setServicosInclusos] = useState<Set<string>>(new Set())
+  const [buscaProduto, setBuscaProduto] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [lastEnc, setLastEnc] = useState<LastEncordoamento | null>(null)
@@ -474,55 +475,68 @@ function NovoEncordoamentoPage() {
               </div>
 
               {/* SEÇÃO: Produtos do Catálogo */}
-              {produtos.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-                    Produtos {Object.keys(produtosSelecionados).length > 0 && (
-                      <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full ml-1">
-                        {Object.values(produtosSelecionados).reduce((s, p) => s + p.qtd, 0)} itens
-                      </span>
-                    )}
-                  </p>
-                  <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto">
-                    {produtos.map(p => {
-                      const sel = produtosSelecionados[p.id]
-                      return (
-                        <div key={p.id}
-                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
-                            sel ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-600'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="truncate">{p.nome}</span>
-                            <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full flex-shrink-0">{p.categoria}</span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <span className="text-xs font-semibold">{formatCurrency(p.preco)}</span>
-                            {sel ? (
-                              <div className="flex items-center gap-1 bg-white rounded-lg border border-emerald-300 px-1">
-                                <button onClick={() => removeProduto(p.id)}
-                                  className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded font-bold text-sm">
-                                  -
-                                </button>
-                                <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
-                                <button onClick={() => addProduto(p.id, p.preco)}
-                                  className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded font-bold text-sm">
-                                  +
-                                </button>
-                              </div>
-                            ) : (
-                              <button onClick={() => addProduto(p.id, p.preco)}
-                                className="w-6 h-6 flex items-center justify-center bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">
-                                +
-                              </button>
-                            )}
+              {produtos.length > 0 && (() => {
+                const filtrados = buscaProduto
+                  ? produtos.filter(p => p.nome.toLowerCase().includes(buscaProduto.toLowerCase()))
+                  : produtos
+                const categorias = [...new Set(filtrados.map(p => p.categoria))].sort()
+                const catLabels: Record<string, string> = {
+                  servico: 'Mão de Obra', grip: 'Cushion Grips', overgrip: 'Overgrips',
+                  acessorio: 'Acessórios', raquete: 'Raquetes',
+                }
+                return (
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
+                      Produtos {Object.keys(produtosSelecionados).length > 0 && (
+                        <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full ml-1">
+                          {Object.values(produtosSelecionados).reduce((s, p) => s + p.qtd, 0)} itens
+                        </span>
+                      )}
+                    </p>
+                    <input
+                      type="text" value={buscaProduto} onChange={e => setBuscaProduto(e.target.value)}
+                      placeholder="Buscar produto..."
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2"
+                    />
+                    <div className="max-h-56 overflow-y-auto space-y-3">
+                      {categorias.map(cat => (
+                        <div key={cat}>
+                          <p className="text-xs text-gray-400 font-semibold uppercase mb-1">{catLabels[cat] || cat}</p>
+                          <div className="grid grid-cols-1 gap-1">
+                            {filtrados.filter(p => p.categoria === cat).map(p => {
+                              const sel = produtosSelecionados[p.id]
+                              return (
+                                <div key={p.id}
+                                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
+                                    sel ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-600'
+                                  }`}
+                                >
+                                  <span className="truncate flex-1 min-w-0">{p.nome}</span>
+                                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                    <span className="text-xs font-semibold">{formatCurrency(p.preco)}</span>
+                                    {sel ? (
+                                      <div className="flex items-center gap-1 bg-white rounded-lg border border-emerald-300 px-1">
+                                        <button onClick={() => removeProduto(p.id)}
+                                          className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded font-bold text-sm">-</button>
+                                        <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
+                                        <button onClick={() => addProduto(p.id, p.preco)}
+                                          className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded font-bold text-sm">+</button>
+                                      </div>
+                                    ) : (
+                                      <button onClick={() => addProduto(p.id, p.preco)}
+                                        className="w-6 h-6 flex items-center justify-center bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">+</button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
                           </div>
                         </div>
-                      )
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* SEÇÃO: Entrega */}
               <div>
