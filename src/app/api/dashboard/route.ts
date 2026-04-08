@@ -77,9 +77,9 @@ export async function GET() {
     })
 
     const topCordasComNome = await Promise.all(
-      topCordas.map(async (item) => {
+      topCordas.filter(item => item.cordaId).map(async (item) => {
         const corda = await prisma.corda.findUnique({
-          where: { id: item.cordaId },
+          where: { id: item.cordaId! },
           select: { nome: true },
         })
         return {
