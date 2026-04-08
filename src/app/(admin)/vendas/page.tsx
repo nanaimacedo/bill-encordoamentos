@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone, MessageCircle, X, Copy, Send, Trash2, MapPin } from 'lucide-react'
+import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone, MessageCircle, X, Copy, Send, Trash2, MapPin, Eye, EyeOff } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import Link from 'next/link'
@@ -57,7 +57,10 @@ export default function VendasPage() {
   const [cobranca, setCobranca] = useState<{ venda: Venda; template: number } | null>(null)
   const [msgCustom, setMsgCustom] = useState('')
   const [editandoCentro, setEditandoCentro] = useState<string | null>(null)
+  const [mostrarValores, setMostrarValores] = useState(false)
   const { toast } = useToast()
+
+  const v$ = (valor: number) => mostrarValores ? formatCurrency(valor) : '•••••'
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -258,6 +261,10 @@ export default function VendasPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Vendas</h1>
         <div className="flex gap-2">
+          <button onClick={() => setMostrarValores(v => !v)}
+            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors" title={mostrarValores ? 'Ocultar valores' : 'Mostrar valores'}>
+            {mostrarValores ? <Eye className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
+          </button>
           <button onClick={carregar} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors" title="Atualizar">
             <RotateCcw className="w-4 h-4 text-gray-600" />
           </button>
@@ -279,21 +286,21 @@ export default function VendasPage() {
         </div>
         <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
           <p className="text-xs text-emerald-600 uppercase font-semibold">Total</p>
-          <p className="text-xl font-bold text-emerald-700">{formatCurrency(resumo.total)}</p>
+          <p className="text-xl font-bold text-emerald-700">{v$(resumo.total)}</p>
         </div>
         <button onClick={() => filtrarPorStatus('pago')}
           className={`rounded-xl p-3 border text-left transition-all ${
             statusFiltro === 'pago' ? 'ring-2 ring-green-500 border-green-300 bg-green-100' : 'bg-green-50 border-green-100'
           }`}>
           <p className="text-xs text-green-600 uppercase font-semibold">Recebido</p>
-          <p className="text-xl font-bold text-green-700">{formatCurrency(resumo.totalPago)}</p>
+          <p className="text-xl font-bold text-green-700">{v$(resumo.totalPago)}</p>
         </button>
         <button onClick={() => filtrarPorStatus('pendente')}
           className={`rounded-xl p-3 border text-left transition-all ${
             statusFiltro === 'pendente' ? 'ring-2 ring-red-500 border-red-300 bg-red-100' : 'bg-red-50 border-red-100'
           }`}>
           <p className="text-xs text-red-600 uppercase font-semibold">Pendente</p>
-          <p className="text-xl font-bold text-red-700">{formatCurrency(resumo.totalPendente)}</p>
+          <p className="text-xl font-bold text-red-700">{v$(resumo.totalPendente)}</p>
         </button>
       </div>
 
@@ -301,7 +308,7 @@ export default function VendasPage() {
       {resumo.quantidade > 0 && (
         <div className="bg-white rounded-xl p-3 border border-gray-100 flex items-center justify-between">
           <span className="text-sm text-gray-500">Ticket médio</span>
-          <span className="text-sm font-bold text-gray-800">{formatCurrency(resumo.total / resumo.quantidade)}</span>
+          <span className="text-sm font-bold text-gray-800">{v$(resumo.total / resumo.quantidade)}</span>
         </div>
       )}
 
@@ -406,7 +413,7 @@ export default function VendasPage() {
                 </div>
                 <div className="text-right ml-3 flex-shrink-0">
                   <p className={`text-lg font-bold ${v.pagamento?.status === 'pago' ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(v.preco)}
+                    {v$(v.preco)}
                   </p>
                   <p className={`text-xs font-medium ${v.pagamento?.status === 'pago' ? 'text-green-500' : 'text-amber-500'}`}>
                     {getStatusLabel(v)}

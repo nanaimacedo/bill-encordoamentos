@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   BarChart3, DollarSign, TrendingUp, AlertCircle, Truck, Store, Users, AlertTriangle,
-  ShoppingBag, UserPlus, Clock, CalendarDays
+  ShoppingBag, UserPlus, Clock, CalendarDays, Eye, EyeOff
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -59,6 +59,9 @@ export default function DashboardPage() {
   const [periodoFat, setPeriodoFat] = useState<Periodo>('mes')
   const [estoqueAlerta, setEstoqueAlerta] = useState<EstoqueAlerta | null>(null)
   const [chartMode, setChartMode] = useState<'count' | 'receita'>('count')
+  const [mostrarValores, setMostrarValores] = useState(false)
+
+  const v$ = (valor: number) => mostrarValores ? formatCurrency(valor) : '•••••'
 
   useEffect(() => {
     fetch('/api/dashboard')
@@ -121,10 +124,16 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900 font-heading">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">Visão geral do seu negócio</p>
         </div>
+        <div className="flex gap-2">
+          <button onClick={() => setMostrarValores(v => !v)}
+            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors" title={mostrarValores ? 'Ocultar valores' : 'Mostrar valores'}>
+            {mostrarValores ? <Eye className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
+          </button>
         <Link href="/vendas"
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors">
           <ShoppingBag className="w-4 h-4" /> Ver Vendas
         </Link>
+        </div>
       </div>
 
       {/* Stock Alert Banner */}
@@ -154,7 +163,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="text-emerald-100 text-xs font-medium uppercase tracking-wider">Hoje</p>
-            <p className="text-3xl font-bold font-heading mt-1">{formatCurrency(data.faturamento.hoje)}</p>
+            <p className="text-3xl font-bold font-heading mt-1">{v$(data.faturamento.hoje)}</p>
           </div>
           <div className="text-right">
             <div className="flex items-center gap-4">
@@ -172,15 +181,15 @@ export default function DashboardPage() {
         <div className="grid grid-cols-3 gap-3 pt-3 border-t border-white/20">
           <div>
             <p className="text-emerald-200 text-[10px] uppercase">Semana</p>
-            <p className="text-sm font-bold">{data.vendasSemana} vendas · {formatCurrency(data.faturamento.semana)}</p>
+            <p className="text-sm font-bold">{data.vendasSemana} vendas · {v$(data.faturamento.semana)}</p>
           </div>
           <div>
             <p className="text-emerald-200 text-[10px] uppercase">Mês</p>
-            <p className="text-sm font-bold">{data.vendasMes} vendas · {formatCurrency(data.faturamento.mes)}</p>
+            <p className="text-sm font-bold">{data.vendasMes} vendas · {v$(data.faturamento.mes)}</p>
           </div>
           <div>
             <p className="text-emerald-200 text-[10px] uppercase">Em aberto</p>
-            <p className="text-sm font-bold text-red-200">{formatCurrency(data.totalEmAberto)}</p>
+            <p className="text-sm font-bold text-red-200">{v$(data.totalEmAberto)}</p>
           </div>
         </div>
       </div>
@@ -189,22 +198,22 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="mb-3"><div className="p-2 rounded-xl bg-blue-50 w-fit"><BarChart3 className="w-5 h-5 text-blue-600" /></div></div>
-          <p className="text-gray-500 text-xs mb-1">Total Encordoamentos</p>
-          <p className="text-2xl font-bold text-gray-900 font-heading">{data.totalEncordoamentos}</p>
+          <p className="text-gray-500 text-xs mb-1">Encordoamentos</p>
+          <p className="text-2xl font-bold text-gray-900 font-heading">{mostrarValores ? data.totalEncordoamentos : '••'}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="mb-3"><div className="p-2 rounded-xl bg-purple-50 w-fit"><TrendingUp className="w-5 h-5 text-purple-600" /></div></div>
-          <p className="text-gray-500 text-xs mb-1">Ticket Médio (Mês)</p>
-          <p className="text-2xl font-bold text-gray-900 font-heading">{formatCurrency(data.ticketMedio.mes)}</p>
-          <p className="text-xs text-gray-400 mt-1">Geral: {formatCurrency(data.ticketMedio.geral)}</p>
+          <p className="text-gray-500 text-xs mb-1">Ticket Médio</p>
+          <p className="text-2xl font-bold text-gray-900 font-heading">{v$(data.ticketMedio.mes)}</p>
+          <p className="text-xs text-gray-400 mt-1">Geral: {v$(data.ticketMedio.geral)}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="mb-3"><div className="p-2 rounded-xl bg-cyan-50 w-fit"><Users className="w-5 h-5 text-cyan-600" /></div></div>
           <p className="text-gray-500 text-xs mb-1">Clientes</p>
-          <p className="text-2xl font-bold text-gray-900 font-heading">{data.totalClientes}</p>
-          {data.clientesNovosMes > 0 && (
+          <p className="text-2xl font-bold text-gray-900 font-heading">{mostrarValores ? data.totalClientes : '••'}</p>
+          {mostrarValores && data.clientesNovosMes > 0 && (
             <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
               <UserPlus className="w-3 h-3" /> +{data.clientesNovosMes} este mês
             </p>
@@ -213,9 +222,14 @@ export default function DashboardPage() {
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="mb-3"><div className="p-2 rounded-xl bg-amber-50 w-fit"><DollarSign className="w-5 h-5 text-amber-600" /></div></div>
-          <p className="text-gray-500 text-xs mb-1">Faturamento Ano</p>
-          <p className="text-2xl font-bold text-gray-900 font-heading">{formatCurrency(data.faturamento.ano)}</p>
-          <p className="text-xs text-gray-400 mt-1">Total: {formatCurrency(data.faturamento.consolidado)}</p>
+          <p className="text-gray-500 text-xs mb-1">Faturamento</p>
+          <p className="text-2xl font-bold text-gray-900 font-heading">{v$(data.faturamento.ano)}</p>
+          <div className="mt-2 space-y-0.5 text-[10px] text-gray-400">
+            <div className="flex justify-between"><span>Dia</span><span className="font-semibold text-gray-600">{v$(data.faturamento.hoje)}</span></div>
+            <div className="flex justify-between"><span>Semana</span><span className="font-semibold text-gray-600">{v$(data.faturamento.semana)}</span></div>
+            <div className="flex justify-between"><span>Mês</span><span className="font-semibold text-gray-600">{v$(data.faturamento.mes)}</span></div>
+            <div className="flex justify-between"><span>Total</span><span className="font-semibold text-gray-600">{v$(data.faturamento.consolidado)}</span></div>
+          </div>
         </div>
       </div>
 
@@ -286,14 +300,14 @@ export default function DashboardPage() {
               <div className="w-3 h-3 rounded-full bg-emerald-600" />
               <div>
                 <p className="text-xs text-gray-500">Loja ({data.centroReceita.loja.total})</p>
-                <p className="text-sm font-semibold">{formatCurrency(data.centroReceita.loja.faturamento)}</p>
+                <p className="text-sm font-semibold">{v$(data.centroReceita.loja.faturamento)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-orange-500" />
               <div>
                 <p className="text-xs text-gray-500">Delivery ({data.centroReceita.delivery.total})</p>
-                <p className="text-sm font-semibold">{formatCurrency(data.centroReceita.delivery.faturamento)}</p>
+                <p className="text-sm font-semibold">{v$(data.centroReceita.delivery.faturamento)}</p>
               </div>
             </div>
           </div>
@@ -321,7 +335,7 @@ export default function DashboardPage() {
           </div>
           <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
             <span className="text-xs text-gray-500">Consolidado (total)</span>
-            <span className="text-sm font-bold text-emerald-600">{formatCurrency(data.faturamento.consolidado)}</span>
+            <span className="text-sm font-bold text-emerald-600">{v$(data.faturamento.consolidado)}</span>
           </div>
         </div>
 
@@ -393,7 +407,7 @@ export default function DashboardPage() {
                     <td className="py-2.5 text-center">
                       <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{c.servicos}</span>
                     </td>
-                    <td className="py-2.5 text-right font-semibold text-emerald-600">{formatCurrency(c.faturamento)}</td>
+                    <td className="py-2.5 text-right font-semibold text-emerald-600">{v$(c.faturamento)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -422,7 +436,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
           <TrendingUp className="w-5 h-5 text-purple-500 mx-auto mb-2" />
           <p className="text-xs text-gray-500">Ticket Geral</p>
-          <p className="text-lg font-bold text-gray-900 font-heading">{formatCurrency(data.ticketMedio.geral)}</p>
+          <p className="text-lg font-bold text-gray-900 font-heading">{v$(data.ticketMedio.geral)}</p>
         </div>
       </div>
     </div>
