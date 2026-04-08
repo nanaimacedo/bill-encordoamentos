@@ -389,7 +389,14 @@ function NovoEncordoamentoPage() {
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 font-heading">Novo Serviço</h2>
-                <p className="text-xs text-gray-500 mt-0.5">{clienteSelecionado.nome} · {clienteSelecionado.telefone}</p>
+                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                  {clienteSelecionado.nome} · {clienteSelecionado.telefone || 'Sem tel'}
+                  {(clienteSelecionado as any).centroReceita && (
+                    <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase">
+                      {(clienteSelecionado as any).centroReceita}
+                    </span>
+                  )}
+                </p>
               </div>
               <button onClick={resetForm} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
                 <X className="w-5 h-5 text-gray-400" />
