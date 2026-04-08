@@ -54,7 +54,7 @@ function NovoEncordoamentoPage() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [cordas, setCordas] = useState<Corda[]>([])
   const [produtos, setProdutos] = useState<{ id: string; nome: string; categoria: string; preco: number }[]>([])
-  const [produtosSelecionados, setProdutosSelecionados] = useState<Record<string, number>>({})
+  const [produtosSelecionados, setProdutosSelecionados] = useState<Record<string, { preco: number; qtd: number }>>({})
   const [busca, setBusca] = useState('')
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -142,16 +142,26 @@ function NovoEncordoamentoPage() {
     })
   }
 
-  const toggleProduto = (produtoId: string, preco: number) => {
+  const addProduto = (produtoId: string, preco: number) => {
     setProdutosSelecionados(prev => {
-      const next = { ...prev }
-      if (next[produtoId]) delete next[produtoId]
-      else next[produtoId] = preco
-      return next
+      const existing = prev[produtoId]
+      return { ...prev, [produtoId]: { preco, qtd: existing ? existing.qtd + 1 : 1 } }
     })
   }
 
-  const totalProdutos = Object.values(produtosSelecionados).reduce((sum, p) => sum + p, 0)
+  const removeProduto = (produtoId: string) => {
+    setProdutosSelecionados(prev => {
+      const existing = prev[produtoId]
+      if (!existing || existing.qtd <= 1) {
+        const next = { ...prev }
+        delete next[produtoId]
+        return next
+      }
+      return { ...prev, [produtoId]: { ...existing, qtd: existing.qtd - 1 } }
+    })
+  }
+
+  const totalProdutos = Object.values(produtosSelecionados).reduce((sum, p) => sum + p.preco * p.qtd, 0)
   const totalExtras = totalProdutos
   const precoServico = preco
   const precoDelivery = entrega === 'delivery' ? taxaDelivery : 0
@@ -195,9 +205,9 @@ function NovoEncordoamentoPage() {
     if (!clienteSelecionado || !cordaSelecionada) return
     setSalvando(true)
     const inclusos = SERVICOS_INCLUSOS.filter(s => servicosInclusos.has(s.id)).map(s => s.nome)
-    const produtosNomes = Object.keys(produtosSelecionados).map(id => {
+    const produtosNomes = Object.entries(produtosSelecionados).map(([id, { qtd }]) => {
       const p = produtos.find(pr => pr.id === id)
-      return p ? p.nome : ''
+      return p ? `${p.nome}${qtd > 1 ? ` x${qtd}` : ''}` : ''
     }).filter(Boolean)
     const extras = [...inclusos, ...produtosNomes].join(', ')
     try {
@@ -466,24 +476,50 @@ function NovoEncordoamentoPage() {
               {/* SEÇÃO: Produtos do Catálogo */}
               {produtos.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Produtos</p>
-                  <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto">
-                    {produtos.map(p => (
-                      <button key={p.id} onClick={() => toggleProduto(p.id, p.preco)}
-                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                          produtosSelecionados[p.id]
-                            ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
-                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          {produtosSelecionados[p.id] && <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
-                          <span className="text-left">{p.nome}</span>
-                          <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{p.categoria}</span>
+                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
+                    Produtos {Object.keys(produtosSelecionados).length > 0 && (
+                      <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full ml-1">
+                        {Object.values(produtosSelecionados).reduce((s, p) => s + p.qtd, 0)} itens
+                      </span>
+                    )}
+                  </p>
+                  <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto">
+                    {produtos.map(p => {
+                      const sel = produtosSelecionados[p.id]
+                      return (
+                        <div key={p.id}
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
+                            sel ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-600'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="truncate">{p.nome}</span>
+                            <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full flex-shrink-0">{p.categoria}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <span className="text-xs font-semibold">{formatCurrency(p.preco)}</span>
+                            {sel ? (
+                              <div className="flex items-center gap-1 bg-white rounded-lg border border-emerald-300 px-1">
+                                <button onClick={() => removeProduto(p.id)}
+                                  className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded font-bold text-sm">
+                                  -
+                                </button>
+                                <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
+                                <button onClick={() => addProduto(p.id, p.preco)}
+                                  className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded font-bold text-sm">
+                                  +
+                                </button>
+                              </div>
+                            ) : (
+                              <button onClick={() => addProduto(p.id, p.preco)}
+                                className="w-6 h-6 flex items-center justify-center bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">
+                                +
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-xs font-semibold ml-2 flex-shrink-0">{formatCurrency(p.preco)}</span>
-                      </button>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -574,12 +610,12 @@ function NovoEncordoamentoPage() {
                     <span className="text-emerald-600">incluso</span>
                   </div>
                 ))}
-                {Object.entries(produtosSelecionados).map(([id, preco]) => {
+                {Object.entries(produtosSelecionados).map(([id, { preco, qtd }]) => {
                   const p = produtos.find(pr => pr.id === id)
                   return (
                     <div key={id} className="flex justify-between text-gray-600">
-                      <span className="truncate mr-2">{p?.nome}</span>
-                      <span className="flex-shrink-0">+{formatCurrency(preco)}</span>
+                      <span className="truncate mr-2">{p?.nome} {qtd > 1 && <span className="text-xs text-gray-400">x{qtd}</span>}</span>
+                      <span className="flex-shrink-0">+{formatCurrency(preco * qtd)}</span>
                     </div>
                   )
                 })}
