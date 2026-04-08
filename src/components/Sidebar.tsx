@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
@@ -116,14 +117,36 @@ export default function Sidebar() {
 }
 
 function MoreMenu({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const hiddenItems = navItems.slice(4);
   const anyActive = hiddenItems.some((item) => pathname.startsWith(item.href));
 
+  // Fechar ao clicar fora
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("touchstart", handleClick);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("touchstart", handleClick);
+    };
+  }, [open]);
+
+  // Fechar ao navegar
+  useEffect(() => { setOpen(false); }, [pathname]);
+
   return (
-    <div className="relative flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[44px] py-2 group">
+    <div ref={menuRef} className="relative flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[44px] py-2">
       <button
+        onClick={() => setOpen((v) => !v)}
         className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
-          anyActive ? "text-primary-600" : "text-foreground-muted"
+          anyActive || open ? "text-primary-600" : "text-foreground-muted"
         }`}
       >
         <svg
@@ -144,26 +167,29 @@ function MoreMenu({ pathname }: { pathname: string }) {
       </button>
 
       {/* Dropdown going up */}
-      <div className="absolute bottom-full mb-2 right-0 hidden group-focus-within:block bg-white border border-border rounded-xl shadow-lg min-w-[180px] py-1 z-50">
-        {hiddenItems.map((item) => {
-          const Icon = item.icon;
-          const active = pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-primary-50 text-primary-700"
-                  : "text-foreground-muted hover:bg-background-secondary hover:text-foreground"
-              }`}
-            >
-              <Icon size={18} />
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
+      {open && (
+        <div className="absolute bottom-full mb-2 right-0 bg-white border border-border rounded-xl shadow-lg min-w-[200px] py-1 z-50 max-h-[60vh] overflow-y-auto">
+          {hiddenItems.map((item) => {
+            const Icon = item.icon;
+            const active = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-primary-50 text-primary-700"
+                    : "text-foreground-muted hover:bg-background-secondary hover:text-foreground"
+                }`}
+              >
+                <Icon size={18} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
