@@ -229,7 +229,7 @@ export default function ClienteDetailPage() {
           href={`/encordoamento?clienteId=${cliente.id}`}
           className="flex-1 flex items-center justify-center gap-1 px-3 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700"
         >
-          <Plus className="w-4 h-4" /> Novo Encordoamento
+          <Plus className="w-4 h-4" /> Nova Venda
         </Link>
         <button
           onClick={gerarQrCliente}

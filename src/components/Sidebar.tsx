@@ -20,7 +20,7 @@ import {
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/encordoamento", label: "Novo Encordoamento", icon: PlusCircle },
+  { href: "/encordoamento", label: "Nova Venda", icon: PlusCircle },
   { href: "/scanner", label: "Scanner QR", icon: QrCode },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/financeiro", label: "Financeiro", icon: DollarSign },
@@ -100,7 +100,7 @@ export default function Sidebar() {
               >
                 <Icon size={20} strokeWidth={active ? 2.5 : 2} />
                 <span className="truncate max-w-[64px]">
-                  {item.label === "Novo Encordoamento" ? "Novo" : item.label}
+                  {item.label === "Nova Venda" ? "Novo" : item.label}
                 </span>
               </Link>
             );

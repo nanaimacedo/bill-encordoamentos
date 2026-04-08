@@ -262,7 +262,7 @@ function NovoEncordoamentoPage() {
     <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto animate-fadeIn">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-heading">Novo Serviço</h1>
+          <h1 className="text-2xl font-bold text-gray-900 font-heading">Nova Venda</h1>
           <p className="text-sm text-gray-500">Selecione o cliente para iniciar</p>
         </div>
       </div>
@@ -317,7 +317,7 @@ function NovoEncordoamentoPage() {
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
-                <h2 className="text-lg font-bold text-gray-900 font-heading">Novo Serviço</h2>
+                <h2 className="text-lg font-bold text-gray-900 font-heading">Nova Venda</h2>
                 <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
                   {clienteSelecionado.nome} · {clienteSelecionado.telefone || 'Sem tel'}
                   {(clienteSelecionado as any).centroReceita && (

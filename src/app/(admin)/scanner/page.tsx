@@ -291,7 +291,7 @@ export default function ScannerPage() {
               href={`/encordoamento?clienteId=${result.cliente.id}`}
               className="flex-1 py-3 rounded-xl bg-green-600 text-white text-sm font-medium text-center hover:bg-green-700"
             >
-              Novo Encordoamento
+              Nova Venda
             </Link>
           </div>
         </>
