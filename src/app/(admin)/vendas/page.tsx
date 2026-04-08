@@ -30,10 +30,14 @@ interface Resumo {
 }
 
 const PERIODOS = [
+  { value: 'todos', label: 'Todos' },
   { value: 'hoje', label: 'Hoje' },
   { value: 'semana', label: 'Semana' },
-  { value: 'mes', label: 'Mês' },
-  { value: 'todos', label: 'Todos' },
+  { value: 'mes', label: 'Mês Atual' },
+  { value: '2026-04', label: 'Abr' },
+  { value: '2026-03', label: 'Mar' },
+  { value: '2026-02', label: 'Fev' },
+  { value: '2026-01', label: 'Jan' },
 ] as const
 
 const STATUS_OPTS = [
@@ -46,7 +50,7 @@ export default function VendasPage() {
   const [vendas, setVendas] = useState<Venda[]>([])
   const [resumo, setResumo] = useState<Resumo>({ quantidade: 0, total: 0, totalPago: 0, totalPendente: 0 })
   const [loading, setLoading] = useState(true)
-  const [periodo, setPeriodo] = useState<string>('hoje')
+  const [periodo, setPeriodo] = useState<string>('todos')
   const [busca, setBusca] = useState('')
   const [statusFiltro, setStatusFiltro] = useState('todos')
   const [cobranca, setCobranca] = useState<{ venda: Venda; template: number } | null>(null)

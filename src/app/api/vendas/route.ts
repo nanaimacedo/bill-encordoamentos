@@ -9,28 +9,39 @@ export async function GET(request: Request) {
 
     const now = new Date()
     let dataInicio: Date
+    let dataFim: Date | null = null
 
-    switch (periodo) {
-      case 'hoje':
-        dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        break
-      case 'semana': {
-        const dia = now.getDay()
-        dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dia)
-        break
+    // Suporta mês específico no formato YYYY-MM
+    if (/^\d{4}-\d{2}$/.test(periodo)) {
+      const [ano, mes] = periodo.split('-').map(Number)
+      dataInicio = new Date(ano, mes - 1, 1)
+      dataFim = new Date(ano, mes, 1) // primeiro dia do mês seguinte
+    } else {
+      switch (periodo) {
+        case 'hoje':
+          dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+          break
+        case 'semana': {
+          const dia = now.getDay()
+          dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dia)
+          break
+        }
+        case 'mes':
+          dataInicio = new Date(now.getFullYear(), now.getMonth(), 1)
+          break
+        case 'todos':
+          dataInicio = new Date(2000, 0, 1)
+          break
+        default:
+          dataInicio = new Date(2000, 0, 1)
       }
-      case 'mes':
-        dataInicio = new Date(now.getFullYear(), now.getMonth(), 1)
-        break
-      case 'todos':
-        dataInicio = new Date(2000, 0, 1)
-        break
-      default:
-        dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     }
 
+    const createdAtFilter: Record<string, unknown> = { gte: dataInicio }
+    if (dataFim) createdAtFilter.lt = dataFim
+
     const where: Record<string, unknown> = {
-      createdAt: { gte: dataInicio },
+      createdAt: createdAtFilter,
     }
 
     if (busca) {
