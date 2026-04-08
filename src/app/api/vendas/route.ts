@@ -1,0 +1,81 @@
+import { prisma } from '@/lib/prisma'
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const periodo = searchParams.get('periodo') || 'hoje'
+    const busca = searchParams.get('busca') || ''
+    const status = searchParams.get('status') || 'todos'
+
+    const now = new Date()
+    let dataInicio: Date
+
+    switch (periodo) {
+      case 'hoje':
+        dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        break
+      case 'semana': {
+        const dia = now.getDay()
+        dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dia)
+        break
+      }
+      case 'mes':
+        dataInicio = new Date(now.getFullYear(), now.getMonth(), 1)
+        break
+      case 'todos':
+        dataInicio = new Date(2000, 0, 1)
+        break
+      default:
+        dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    }
+
+    const where: Record<string, unknown> = {
+      createdAt: { gte: dataInicio },
+    }
+
+    if (busca) {
+      where.cliente = {
+        OR: [
+          { nome: { contains: busca, mode: 'insensitive' } },
+          { telefone: { contains: busca } },
+        ],
+      }
+    }
+
+    if (status !== 'todos') {
+      where.status = status
+    }
+
+    const encordoamentos = await prisma.encordoamento.findMany({
+      where: where as any,
+      include: {
+        cliente: true,
+        corda: true,
+        pagamento: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    // Totais do período
+    const total = encordoamentos.reduce((sum, e) => sum + e.preco, 0)
+    const totalPago = encordoamentos
+      .filter(e => e.pagamento?.status === 'pago')
+      .reduce((sum, e) => sum + e.preco, 0)
+    const totalPendente = encordoamentos
+      .filter(e => e.pagamento?.status === 'pendente')
+      .reduce((sum, e) => sum + e.preco, 0)
+
+    return Response.json({
+      vendas: encordoamentos,
+      resumo: {
+        quantidade: encordoamentos.length,
+        total,
+        totalPago,
+        totalPendente,
+      },
+    })
+  } catch (error) {
+    console.error('Erro ao listar vendas:', error)
+    return Response.json({ error: 'Erro ao listar vendas' }, { status: 500 })
+  }
+}

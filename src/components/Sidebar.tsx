@@ -16,11 +16,13 @@ import {
   ShoppingBag,
   Brain,
   MapPin,
+  ClipboardList,
 } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/encordoamento", label: "Nova Venda", icon: PlusCircle },
+  { href: "/vendas", label: "Vendas", icon: ClipboardList },
   { href: "/scanner", label: "Scanner QR", icon: QrCode },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/financeiro", label: "Financeiro", icon: DollarSign },

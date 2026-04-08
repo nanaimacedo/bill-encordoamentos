@@ -21,6 +21,7 @@ interface Corda {
   tipo: string
   calibre: string
   preco: number
+  estoque: number
 }
 
 interface LastEncordoamento {
@@ -183,9 +184,9 @@ function NovoEncordoamentoPage() {
     })
   }
 
-  // Cordas extras: excluir a corda principal se estiver selecionada para encordoar (já conta no precoServico)
+  // Cordas extras: a corda principal já conta 1 unidade no precoServico, então só soma as extras adicionais
   const totalCordasExtras = Object.entries(cordasExtras).reduce((sum, [id, c]) => {
-    if (id === cordaSelecionada) return sum // já está no precoServico
+    if (id === cordaSelecionada) return sum + c.preco * c.qtd // extras avulsas da mesma corda (base já no precoServico)
     return sum + c.preco * c.qtd
   }, 0)
   const totalProdutos = Object.values(produtosSelecionados).reduce((sum, p) => sum + p.preco * p.qtd, 0)
@@ -200,6 +201,13 @@ function NovoEncordoamentoPage() {
     setCordaSelecionada(lastEnc.cordaId)
     setTensao(lastEnc.tensao)
     setPreco(lastEnc.preco)
+    if (lastEnc.tipo === 'hibrida') {
+      setTipoEnc('hibrida')
+      if (lastEnc.tensaoCross) setTensaoCross(lastEnc.tensaoCross)
+    } else {
+      setTipoEnc('padrao')
+    }
+    toast({ title: `Repetindo: ${lastEnc.corda.nome} ${lastEnc.tensao}lbs`, type: 'success' })
   }
 
   const selecionarCliente = (c: Cliente) => {
@@ -270,7 +278,6 @@ function NovoEncordoamentoPage() {
       if (res.ok) {
         toast({ title: 'Encordoamento registrado com sucesso!', type: 'success' })
         setSucesso(true)
-        setTimeout(() => { setSucesso(false); resetForm() }, 1500)
       } else {
         toast({ title: 'Erro ao registrar encordoamento', type: 'error' })
       }
@@ -438,6 +445,8 @@ function NovoEncordoamentoPage() {
                             <span>{c.nome}</span>
                             <span className="text-xs text-gray-400 ml-1">- {c.marca}</span>
                             {isMain && <span className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded ml-1.5">encordoar</span>}
+                            {c.estoque <= 0 && <span className="text-xs bg-red-600 text-white px-1.5 py-0.5 rounded ml-1.5">sem estoque</span>}
+                            {c.estoque > 0 && c.estoque <= 3 && <span className="text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded ml-1.5">{c.estoque} un.</span>}
                           </button>
                           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                             <span className="text-xs font-semibold">{formatCurrency(c.preco)}</span>
@@ -458,6 +467,20 @@ function NovoEncordoamentoPage() {
                       )
                     })}
                 </div>
+                {/* Alerta de estoque baixo para corda selecionada */}
+                {cordaSel && cordaSel.estoque <= 3 && (
+                  <div className={`mt-2 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                    cordaSel.estoque <= 0
+                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                    <span>{cordaSel.estoque <= 0 ? '⚠' : '📦'}</span>
+                    {cordaSel.estoque <= 0
+                      ? `${cordaSel.nome} está sem estoque!`
+                      : `${cordaSel.nome} — apenas ${cordaSel.estoque} unidade${cordaSel.estoque > 1 ? 's' : ''} em estoque`
+                    }
+                  </div>
+                )}
               </div>
 
               {/* SEÇÃO: Corda Cruzadas (Cross) - apenas em híbrida */}
@@ -758,17 +781,55 @@ function NovoEncordoamentoPage() {
         </div>
       )}
 
-      {/* Modal Sucesso */}
+      {/* Modal Sucesso - com resumo e ações */}
       {sucesso && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 text-center animate-slideUp">
-            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-emerald-600" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-8 h-8 text-emerald-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 font-heading">Venda Registrada!</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {entrega === 'delivery' ? 'Delivery programado' : 'Aguardando retirada'}
+              </p>
+
+              {/* Resumo da venda */}
+              <div className="bg-gray-50 rounded-xl p-4 mt-4 text-left space-y-2 text-sm">
+                {clienteSelecionado && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Cliente</span>
+                    <span className="font-medium text-gray-800">{clienteSelecionado.nome}</span>
+                  </div>
+                )}
+                {cordaSel && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Corda</span>
+                    <span className="font-medium text-gray-800">{cordaSel.nome} {tensao}lbs</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-2 border-t border-gray-200">
+                  <span className="text-gray-500 font-semibold">Total</span>
+                  <span className="font-bold text-emerald-600 text-base">{formatCurrency(precoTotal)}</span>
+                </div>
+              </div>
             </div>
-            <h2 className="text-xl font-bold text-gray-800 font-heading">Serviço Registrado!</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {entrega === 'delivery' ? 'Delivery programado' : 'Aguardando retirada'}
-            </p>
+
+            {/* Botões de ação */}
+            <div className="flex gap-3 p-5 border-t border-gray-100">
+              <button
+                onClick={() => { setSucesso(false); resetForm() }}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> Nova Venda
+              </button>
+              <a
+                href="/vendas"
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 font-medium hover:bg-gray-50 transition-colors text-center"
+              >
+                Ver Vendas
+              </a>
+            </div>
           </div>
         </div>
       )}
