@@ -25,8 +25,27 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
+    const data: Record<string, unknown> = {
+      clienteId: body.clienteId,
+      preco: body.preco || 0,
+      tipo: body.tipo || 'padrao',
+      status: body.status || 'pendente',
+      entrega: body.entrega || 'retirada',
+      enderecoEntrega: body.enderecoEntrega || '',
+      taxaDelivery: body.taxaDelivery || 0,
+      centroReceita: body.centroReceita || 'loja',
+      observacoes: body.observacoes || '',
+    }
+
+    // Corda é opcional (venda avulsa pode não ter)
+    if (body.cordaId) {
+      data.cordaId = body.cordaId
+      data.tensao = body.tensao || 0
+      data.tensaoCross = body.tensaoCross || null
+    }
+
     const encordoamento = await prisma.encordoamento.create({
-      data: body,
+      data: data as any,
       include: {
         cliente: true,
         corda: true,

@@ -79,8 +79,8 @@ model Produto {
 model Encordoamento {
   id              String   @id @default(cuid())
   clienteId       String
-  cordaId         String
-  tensao          Float
+  cordaId         String?
+  tensao          Float    @default(0)
   tensaoCross     Float?
   tipo            String   @default("padrao")
   preco           Float
@@ -94,7 +94,7 @@ model Encordoamento {
   updatedAt       DateTime @updatedAt
 
   cliente   Cliente    @relation(fields: [clienteId], references: [id])
-  corda     Corda      @relation(fields: [cordaId], references: [id])
+  corda     Corda?     @relation(fields: [cordaId], references: [id])
   pagamento Pagamento?
 }
 
