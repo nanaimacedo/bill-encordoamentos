@@ -202,7 +202,7 @@ function NovoEncordoamentoPage() {
   }
 
   const salvar = async () => {
-    if (!clienteSelecionado || !cordaSelecionada) return
+    if (!clienteSelecionado || (!cordaSelecionada && Object.keys(produtosSelecionados).length === 0)) return
     setSalvando(true)
     const inclusos = SERVICOS_INCLUSOS.filter(s => servicosInclusos.has(s.id)).map(s => s.nome)
     const produtosNomes = Object.entries(produtosSelecionados).map(([id, { qtd }]) => {
@@ -648,7 +648,7 @@ function NovoEncordoamentoPage() {
                   className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                   Cancelar
                 </button>
-                <button onClick={salvar} disabled={!cordaSelecionada || salvando}
+                <button onClick={salvar} disabled={(!cordaSelecionada && Object.keys(produtosSelecionados).length === 0) || salvando}
                   className="flex-[2] py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-emerald-200">
                   {salvando ? 'Salvando...' : 'Salvar e Registrar'}
                 </button>
