@@ -214,7 +214,7 @@ export default function VendasPage() {
         </div>
       </div>
 
-      {/* Lista de Vendas */}
+      {/* Lista de Vendas — pendentes primeiro, pagos embaixo */}
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4].map(i => <div key={i} className="bg-white rounded-xl p-4 animate-pulse h-24" />)}
@@ -225,9 +225,32 @@ export default function VendasPage() {
           <p className="text-gray-400 text-sm">Nenhuma venda encontrada</p>
           <p className="text-gray-300 text-xs mt-1">Altere o período ou filtros</p>
         </div>
-      ) : (
+      ) : (() => {
+        const pendentes = vendas.filter(v => v.pagamento?.status !== 'pago')
+        const pagos = vendas.filter(v => v.pagamento?.status === 'pago')
+        const vendasOrdenadas = [...pendentes, ...pagos]
+        return (
         <div className="space-y-2">
-          {vendas.map(v => (
+          {/* Contadores */}
+          {pendentes.length > 0 && pagos.length > 0 && (
+            <div className="flex items-center gap-3 text-xs font-medium">
+              <span className="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">
+                {pendentes.length} pendente{pendentes.length !== 1 ? 's' : ''}
+              </span>
+              <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
+                {pagos.length} pago{pagos.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+          {/* Separador quando há pendentes */}
+          {pendentes.length > 0 && pagos.length > 0 && (
+            <p className="text-[10px] text-amber-600 font-semibold uppercase tracking-wider pt-1">Aguardando pagamento</p>
+          )}
+          {vendasOrdenadas.map((v, idx) => (
+            <>{/* Separador entre pendentes e pagos */}
+            {idx === pendentes.length && pendentes.length > 0 && pagos.length > 0 && (
+              <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wider pt-3">Pagos</p>
+            )}
             <div key={v.id} className="bg-white rounded-xl p-4 border border-gray-100 hover:border-emerald-200 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
@@ -304,9 +327,9 @@ export default function VendasPage() {
                 </div>
               </div>
             </div>
-          ))}
+          </>))}
         </div>
-      )}
+        )})()}
     </div>
   )
 }
