@@ -75,6 +75,7 @@ function NovoEncordoamentoPage() {
   const [buscaCorda, setBuscaCorda] = useState('')
   const [servicosInclusos, setServicosInclusos] = useState<Set<string>>(new Set())
   const [buscaProduto, setBuscaProduto] = useState('')
+  const [catProduto, setCatProduto] = useState<string>('todos')
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [lastEnc, setLastEnc] = useState<LastEncordoamento | null>(null)
@@ -235,6 +236,7 @@ function NovoEncordoamentoPage() {
     setServicosInclusos(new Set())
     setProdutosSelecionados({})
     setBuscaProduto('')
+    setCatProduto('todos')
     setBusca('')
     setLastEnc(null)
   }
@@ -414,7 +416,7 @@ function NovoEncordoamentoPage() {
                 </div>
               </div>
 
-              {/* SEÇÃO: Cordas */}
+              {/* SEÇÃO: Cordas — Layout POS (badges grid) */}
               <div>
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
                   {tipoEnc === 'hibrida' ? 'Corda Principal (Mains)' : 'Cordas'}
@@ -427,46 +429,79 @@ function NovoEncordoamentoPage() {
                 <input type="text" value={buscaCorda} onChange={e => setBuscaCorda(e.target.value)}
                   placeholder="Buscar corda..."
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2" />
-                <div className="max-h-48 overflow-y-auto space-y-1">
-                  {cordas
-                    .filter(c => !buscaCorda || c.nome.toLowerCase().includes(buscaCorda.toLowerCase()) || c.marca.toLowerCase().includes(buscaCorda.toLowerCase()))
-                    .map(c => {
-                      const sel = cordasExtras[c.id]
-                      const isMain = cordaSelecionada === c.id
-                      return (
-                        <div key={c.id}
-                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
-                            isMain ? 'bg-emerald-100 border-emerald-500 text-emerald-800' :
-                            sel ? 'bg-emerald-50 border-emerald-400 text-emerald-700' :
-                            'bg-gray-50 border-gray-200 text-gray-600'
-                          }`}>
-                          <button className="truncate flex-1 min-w-0 text-left"
-                            onClick={() => { setCordaSelecionada(c.id); setPreco(c.preco) }}>
-                            <span>{c.nome}</span>
-                            <span className="text-xs text-gray-400 ml-1">- {c.marca}</span>
-                            {isMain && <span className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded ml-1.5">encordoar</span>}
-                            {c.estoque <= 0 && <span className="text-xs bg-red-600 text-white px-1.5 py-0.5 rounded ml-1.5">sem estoque</span>}
-                            {c.estoque > 0 && c.estoque <= 3 && <span className="text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded ml-1.5">{c.estoque} un.</span>}
+                {/* Abas por marca */}
+                {(() => {
+                  const cordasFiltradas = cordas.filter(c => !buscaCorda || c.nome.toLowerCase().includes(buscaCorda.toLowerCase()) || c.marca.toLowerCase().includes(buscaCorda.toLowerCase()))
+                  const marcas = ['Todas', ...([...new Set(cordasFiltradas.map(c => c.marca))].sort())]
+                  return (
+                    <>
+                      <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar-hide">
+                        {marcas.map(m => (
+                          <button key={m} onClick={() => setBuscaCorda(m === 'Todas' ? '' : m)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                              (m === 'Todas' && !buscaCorda) || buscaCorda === m
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}>
+                            {m}
                           </button>
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <span className="text-xs font-semibold">{formatCurrency(c.preco)}</span>
-                            {sel ? (
-                              <div className="flex items-center gap-1 bg-white rounded-lg border border-emerald-300 px-1">
-                                <button onClick={() => removeCordaExtra(c.id)}
-                                  className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded font-bold text-sm">-</button>
-                                <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
-                                <button onClick={() => addCordaExtra(c.id, c.preco)}
-                                  className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded font-bold text-sm">+</button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                        {cordasFiltradas.map(c => {
+                          const sel = cordasExtras[c.id]
+                          const isMain = cordaSelecionada === c.id
+                          return (
+                            <div key={c.id}
+                              className={`relative rounded-xl p-2.5 text-center transition-all border-2 cursor-pointer ${
+                                isMain ? 'bg-emerald-100 border-emerald-500 shadow-sm shadow-emerald-200' :
+                                sel ? 'bg-emerald-50 border-emerald-400' :
+                                'bg-white border-gray-200 hover:border-emerald-300 hover:shadow-sm'
+                              }`}>
+                              {/* Badge de quantidade */}
+                              {sel && (
+                                <span className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow">
+                                  {sel.qtd}
+                                </span>
+                              )}
+                              {/* Estoque baixo */}
+                              {c.estoque <= 0 && (
+                                <span className="absolute top-1 left-1 text-[9px] bg-red-600 text-white px-1 py-0.5 rounded font-bold">SEM EST.</span>
+                              )}
+                              {c.estoque > 0 && c.estoque <= 3 && (
+                                <span className="absolute top-1 left-1 text-[9px] bg-amber-500 text-white px-1 py-0.5 rounded font-bold">{c.estoque} un</span>
+                              )}
+                              {/* Toque para encordoar */}
+                              <button className="w-full" onClick={() => { setCordaSelecionada(c.id); setPreco(c.preco) }}>
+                                <p className="text-xs font-bold text-gray-800 leading-tight truncate">{c.nome}</p>
+                                <p className="text-[10px] text-gray-400 truncate">{c.marca} · {c.tipo}</p>
+                                <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(c.preco)}</p>
+                                {isMain && <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">encordoar</span>}
+                              </button>
+                              {/* Botão avulsa */}
+                              <div className="mt-1.5 flex justify-center">
+                                {sel ? (
+                                  <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200">
+                                    <button onClick={() => removeCordaExtra(c.id)}
+                                      className="w-7 h-7 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-l-lg font-bold text-sm">-</button>
+                                    <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
+                                    <button onClick={() => addCordaExtra(c.id, c.preco)}
+                                      className="w-7 h-7 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-r-lg font-bold text-sm">+</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => addCordaExtra(c.id, c.preco)}
+                                    className="text-[10px] px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg font-semibold hover:bg-emerald-100 transition-colors">
+                                    + avulsa
+                                  </button>
+                                )}
                               </div>
-                            ) : (
-                              <button onClick={() => addCordaExtra(c.id, c.preco)}
-                                className="w-6 h-6 flex items-center justify-center bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">+</button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )
+                })()}
                 {/* Alerta de estoque baixo para corda selecionada */}
                 {cordaSel && cordaSel.estoque <= 3 && (
                   <div className={`mt-2 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
@@ -563,16 +598,18 @@ function NovoEncordoamentoPage() {
                 </div>
               </div>
 
-              {/* SEÇÃO: Produtos do Catálogo */}
+              {/* SEÇÃO: Produtos — Layout POS (badges grid com abas de categoria) */}
               {produtos.length > 0 && (() => {
-                const filtrados = buscaProduto
-                  ? produtos.filter(p => p.nome.toLowerCase().includes(buscaProduto.toLowerCase()))
-                  : produtos
-                const categorias = [...new Set(filtrados.map(p => p.categoria))].sort()
                 const catLabels: Record<string, string> = {
-                  servico: 'Mão de Obra', grip: 'Cushion Grips', overgrip: 'Overgrips',
+                  servico: 'Mão de Obra', grip: 'Grips', overgrip: 'Overgrips',
                   acessorio: 'Acessórios', raquete: 'Raquetes',
                 }
+                const categorias = [...new Set(produtos.map(p => p.categoria))].sort()
+                const filtrados = buscaProduto
+                  ? produtos.filter(p => p.nome.toLowerCase().includes(buscaProduto.toLowerCase()))
+                  : catProduto === 'todos'
+                    ? produtos
+                    : produtos.filter(p => p.categoria === catProduto)
                 return (
                   <div>
                     <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
@@ -587,41 +624,59 @@ function NovoEncordoamentoPage() {
                       placeholder="Buscar produto..."
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2"
                     />
-                    <div className="max-h-56 overflow-y-auto space-y-3">
+                    {/* Abas de categoria */}
+                    <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar-hide">
+                      <button onClick={() => setCatProduto('todos')}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                          catProduto === 'todos' && !buscaProduto ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}>
+                        Todos
+                      </button>
                       {categorias.map(cat => (
-                        <div key={cat}>
-                          <p className="text-xs text-gray-400 font-semibold uppercase mb-1">{catLabels[cat] || cat}</p>
-                          <div className="grid grid-cols-1 gap-1">
-                            {filtrados.filter(p => p.categoria === cat).map(p => {
-                              const sel = produtosSelecionados[p.id]
-                              return (
-                                <div key={p.id}
-                                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
-                                    sel ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-600'
-                                  }`}
-                                >
-                                  <span className="truncate flex-1 min-w-0">{p.nome}</span>
-                                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                                    <span className="text-xs font-semibold">{formatCurrency(p.preco)}</span>
-                                    {sel ? (
-                                      <div className="flex items-center gap-1 bg-white rounded-lg border border-emerald-300 px-1">
-                                        <button onClick={() => removeProduto(p.id)}
-                                          className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded font-bold text-sm">-</button>
-                                        <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
-                                        <button onClick={() => addProduto(p.id, p.preco)}
-                                          className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded font-bold text-sm">+</button>
-                                      </div>
-                                    ) : (
-                                      <button onClick={() => addProduto(p.id, p.preco)}
-                                        className="w-6 h-6 flex items-center justify-center bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">+</button>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
+                        <button key={cat} onClick={() => { setCatProduto(cat); setBuscaProduto('') }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                            catProduto === cat && !buscaProduto ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}>
+                          {catLabels[cat] || cat}
+                        </button>
                       ))}
+                    </div>
+                    {/* Grid de badges */}
+                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                      {filtrados.map(p => {
+                        const sel = produtosSelecionados[p.id]
+                        return (
+                          <div key={p.id}
+                            className={`relative rounded-xl p-2.5 text-center transition-all border-2 ${
+                              sel ? 'bg-emerald-50 border-emerald-400 shadow-sm' : 'bg-white border-gray-200 hover:border-emerald-300 hover:shadow-sm'
+                            }`}>
+                            {/* Badge de quantidade */}
+                            {sel && (
+                              <span className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow">
+                                {sel.qtd}
+                              </span>
+                            )}
+                            <p className="text-xs font-bold text-gray-800 leading-tight truncate">{p.nome}</p>
+                            <p className="text-[10px] text-gray-400">{catLabels[p.categoria] || p.categoria}</p>
+                            <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(p.preco)}</p>
+                            {/* Controles */}
+                            <div className="mt-1.5 flex justify-center">
+                              {sel ? (
+                                <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200">
+                                  <button onClick={() => removeProduto(p.id)}
+                                    className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-l-lg font-bold text-base">-</button>
+                                  <span className="w-6 text-center text-xs font-bold">{sel.qtd}</span>
+                                  <button onClick={() => addProduto(p.id, p.preco)}
+                                    className="w-8 h-8 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-r-lg font-bold text-base">+</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => addProduto(p.id, p.preco)}
+                                  className="w-8 h-8 flex items-center justify-center bg-emerald-600 text-white rounded-xl text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">+</button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
