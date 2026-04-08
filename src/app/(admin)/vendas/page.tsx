@@ -27,6 +27,7 @@ interface Resumo {
   total: number
   totalPago: number
   totalPendente: number
+  totalRaquetes: number
 }
 
 const PERIODOS = [
@@ -48,7 +49,7 @@ const STATUS_OPTS = [
 
 export default function VendasPage() {
   const [vendas, setVendas] = useState<Venda[]>([])
-  const [resumo, setResumo] = useState<Resumo>({ quantidade: 0, total: 0, totalPago: 0, totalPendente: 0 })
+  const [resumo, setResumo] = useState<Resumo>({ quantidade: 0, total: 0, totalPago: 0, totalPendente: 0, totalRaquetes: 0 })
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState<string>('todos')
   const [busca, setBusca] = useState('')
@@ -65,7 +66,7 @@ export default function VendasPage() {
       const res = await fetch(`/api/vendas?${params}`)
       const data = await res.json()
       setVendas(data.vendas || [])
-      setResumo(data.resumo || { quantidade: 0, total: 0, totalPago: 0, totalPendente: 0 })
+      setResumo(data.resumo || { quantidade: 0, total: 0, totalPago: 0, totalPendente: 0, totalRaquetes: 0 })
     } catch {
       toast({ title: 'Erro ao carregar vendas', type: 'error' })
     } finally {
@@ -139,6 +140,32 @@ export default function VendasPage() {
       toast({ title: `${clienteNome} — ${forma.toUpperCase()}`, type: 'success' })
     } catch {
       toast({ title: 'Erro ao confirmar pagamento', type: 'error' })
+    }
+  }
+
+  const desfazerPagamento = async (pagamentoId: string, clienteNome: string, valor: number) => {
+    // Otimista
+    setVendas(prev => prev.map(v =>
+      v.pagamento?.id === pagamentoId
+        ? { ...v, pagamento: { ...v.pagamento, status: 'pendente', formaPagamento: null } }
+        : v
+    ))
+    setResumo(prev => ({
+      ...prev,
+      totalPago: prev.totalPago - valor,
+      totalPendente: prev.totalPendente + valor,
+    }))
+
+    try {
+      const res = await fetch(`/api/pagamentos/${pagamentoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'pendente', formaPagamento: '' }),
+      })
+      if (!res.ok) { carregar(); throw new Error('Falha') }
+      toast({ title: `${clienteNome} — voltou para pendente`, type: 'success' })
+    } catch {
+      toast({ title: 'Erro ao desfazer pagamento', type: 'error' })
     }
   }
 
@@ -244,10 +271,14 @@ export default function VendasPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
         <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
           <p className="text-xs text-blue-600 uppercase font-semibold">Vendas</p>
           <p className="text-xl font-bold text-blue-700">{resumo.quantidade}</p>
+        </div>
+        <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
+          <p className="text-xs text-purple-600 uppercase font-semibold">Raquetes</p>
+          <p className="text-xl font-bold text-purple-700">{resumo.totalRaquetes}</p>
         </div>
         <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
           <p className="text-xs text-emerald-600 uppercase font-semibold">Total</p>
@@ -425,6 +456,13 @@ export default function VendasPage() {
                       <MessageCircle className="w-3.5 h-3.5" /> Cobrar via WhatsApp
                     </button>
                   </div>
+                )}
+                {/* Desfazer pagamento — só para itens pagos */}
+                {v.pagamento && v.pagamento.status === 'pago' && (
+                  <button onClick={() => desfazerPagamento(v.pagamento!.id, v.cliente.nome, v.preco)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100 transition-colors">
+                    <XCircle className="w-3.5 h-3.5" /> Desfazer pagamento
+                  </button>
                 )}
                 {/* Ação rápida: refazer venda */}
                 <div className="flex gap-2">

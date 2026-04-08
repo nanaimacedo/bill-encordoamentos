@@ -76,6 +76,20 @@ export async function GET(request: Request) {
       .filter(e => e.pagamento?.status === 'pendente')
       .reduce((sum, e) => sum + e.preco, 0)
 
+    // Contagem de raquetes (parse do observacoes)
+    let totalRaquetes = 0
+    encordoamentos.forEach(e => {
+      const obs = e.observacoes || ''
+      if (obs.includes('Venda avulsa')) return // produto avulso, sem raquete
+      const match = obs.match(/(\d+)\s*raquete/)
+      if (match) {
+        totalRaquetes += parseInt(match[1])
+      } else {
+        // Se não é avulsa e não tem "X raquetes", conta 1
+        totalRaquetes += 1
+      }
+    })
+
     return Response.json({
       vendas: encordoamentos,
       resumo: {
@@ -83,6 +97,7 @@ export async function GET(request: Request) {
         total,
         totalPago,
         totalPendente,
+        totalRaquetes,
       },
     })
   } catch (error) {
