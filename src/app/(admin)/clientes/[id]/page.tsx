@@ -13,7 +13,7 @@ interface Encordoamento {
   status: string
   entrega?: string
   createdAt: string
-  corda: { nome: string; marca: string }
+  corda: { nome: string; marca: string } | null
   pagamento: { status: string } | null
 }
 
@@ -287,7 +287,7 @@ export default function ClienteDetailPage() {
           {cliente.encordoamentos.map(enc => (
             <div key={enc.id} className="bg-white rounded-xl p-3 border border-gray-100">
               <div className="flex items-center justify-between mb-1">
-                <span className="font-medium text-sm text-gray-800">{enc.corda.nome}</span>
+                <span className="font-medium text-sm text-gray-800">{enc.corda?.nome || 'Venda avulsa'}</span>
                 <div className="flex items-center gap-1">
                   {enc.entrega === 'delivery' && <Truck className="w-3 h-3 text-blue-500" />}
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[enc.status] || 'bg-gray-100 text-gray-600'}`}>
