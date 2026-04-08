@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
-import { Search, RotateCcw, Check, Plus, Truck, Package, X, ChevronDown, Paintbrush, Sparkles, Shield, Circle, Grip, Disc, Wrench } from 'lucide-react'
+import { Search, RotateCcw, Check, Plus, Truck, Package, X } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -34,59 +34,11 @@ interface LastEncordoamento {
 
 const TENSOES_MAIN = [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
 
-// Serviços simples (sem variações de marca)
-const SERVICOS_SIMPLES: { id: string; nome: string; preco: number; iconKey: string }[] = [
-  { id: 'pintar_logo', nome: 'Pintar Logo', preco: 0, iconKey: 'paintbrush' },
-  { id: 'limpeza', nome: 'Limpeza Raquete', preco: 0, iconKey: 'sparkles' },
+// Serviços inclusos (sem custo)
+const SERVICOS_INCLUSOS = [
+  { id: 'pintar_logo', nome: 'Pintar Logo' },
+  { id: 'limpeza', nome: 'Limpeza Raquete' },
 ]
-
-// Serviços com variações de marca (abre sub-menu)
-const SERVICOS_COM_MARCA = [
-  {
-    id: 'overgrip', nome: 'Overgrip', iconKey: 'circle',
-    opcoes: [
-      { id: 'overgrip_wilson_pro', nome: 'Wilson Pro', preco: 15 },
-      { id: 'overgrip_babolat_vs', nome: 'Babolat VS Dry', preco: 18 },
-      { id: 'overgrip_yonex_supergrap', nome: 'Yonex Super Grap', preco: 16 },
-      { id: 'overgrip_head_xtreme', nome: 'Head Xtreme Soft', preco: 14 },
-    ],
-  },
-  {
-    id: 'antivibrador', nome: 'Antivibrador', iconKey: 'disc',
-    opcoes: [
-      { id: 'anti_wilson', nome: 'Wilson Shock Shield', preco: 12 },
-      { id: 'anti_babolat', nome: 'Babolat Custom Damp', preco: 15 },
-      { id: 'anti_head', nome: 'Head Djokovic', preco: 10 },
-    ],
-  },
-  {
-    id: 'cushion_grip', nome: 'Cushion Grip', iconKey: 'grip',
-    opcoes: [
-      { id: 'cushion_wilson', nome: 'Wilson Premium', preco: 30 },
-      { id: 'cushion_babolat', nome: 'Babolat Syntec Pro', preco: 35 },
-      { id: 'cushion_yonex', nome: 'Yonex Premium', preco: 28 },
-      { id: 'cushion_head', nome: 'Head Hydrosorb Pro', preco: 32 },
-    ],
-  },
-  {
-    id: 'fita_protetora', nome: 'Fita Protetora', iconKey: 'shield',
-    opcoes: [
-      { id: 'fita_wilson', nome: 'Wilson', preco: 12 },
-      { id: 'fita_head', nome: 'Head', preco: 10 },
-      { id: 'fita_babolat', nome: 'Babolat', preco: 14 },
-    ],
-  },
-]
-
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  paintbrush: Paintbrush,
-  sparkles: Sparkles,
-  shield: Shield,
-  circle: Circle,
-  grip: Grip,
-  disc: Disc,
-  wrench: Wrench,
-}
 
 export default function NovoEncordoamentoPageWrapper() {
   return (
@@ -118,9 +70,7 @@ function NovoEncordoamentoPage() {
   const [entrega, setEntrega] = useState<'retirada' | 'delivery'>('retirada')
   const [enderecoEntrega, setEnderecoEntrega] = useState('')
   const [taxaDelivery, setTaxaDelivery] = useState<number>(10)
-  const [servicosExtras, setServicosExtras] = useState<Set<string>>(new Set())
-  const [menuAberto, setMenuAberto] = useState<string | null>(null)
-  const [selecoesComMarca, setSelecoesComMarca] = useState<Record<string, { id: string; nome: string; preco: number }>>({})
+  const [servicosInclusos, setServicosInclusos] = useState<Set<string>>(new Set())
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [lastEnc, setLastEnc] = useState<LastEncordoamento | null>(null)
@@ -184,23 +134,10 @@ function NovoEncordoamentoPage() {
     }
   }, [cordaSelecionada, cordaCross, cordas, tipoEnc])
 
-  const toggleServicoSimples = (id: string) => {
-    setServicosExtras(prev => {
+  const toggleIncluso = (id: string) => {
+    setServicosInclusos(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-
-  const selecionarOpcaoMarca = (categoriaId: string, opcao: { id: string; nome: string; preco: number }) => {
-    setSelecoesComMarca(prev => ({ ...prev, [categoriaId]: opcao }))
-    setMenuAberto(null)
-  }
-
-  const removerMarca = (categoriaId: string) => {
-    setSelecoesComMarca(prev => {
-      const next = { ...prev }
-      delete next[categoriaId]
       return next
     })
   }
@@ -214,10 +151,8 @@ function NovoEncordoamentoPage() {
     })
   }
 
-  const totalSimples = SERVICOS_SIMPLES.filter(s => servicosExtras.has(s.id)).reduce((sum, s) => sum + s.preco, 0)
-  const totalMarca = Object.values(selecoesComMarca).reduce((sum, s) => sum + s.preco, 0)
   const totalProdutos = Object.values(produtosSelecionados).reduce((sum, p) => sum + p, 0)
-  const totalExtras = totalSimples + totalMarca + totalProdutos
+  const totalExtras = totalProdutos
   const precoServico = preco
   const precoDelivery = entrega === 'delivery' ? taxaDelivery : 0
   const subtotal = precoServico + totalExtras + precoDelivery + valorExtra
@@ -250,10 +185,8 @@ function NovoEncordoamentoPage() {
     setObservacoes('')
     setEntrega('retirada')
     setEnderecoEntrega('')
-    setServicosExtras(new Set())
-    setSelecoesComMarca({})
+    setServicosInclusos(new Set())
     setProdutosSelecionados({})
-    setMenuAberto(null)
     setBusca('')
     setLastEnc(null)
   }
@@ -261,16 +194,12 @@ function NovoEncordoamentoPage() {
   const salvar = async () => {
     if (!clienteSelecionado || !cordaSelecionada) return
     setSalvando(true)
-    const extrasSimples = SERVICOS_SIMPLES.filter(s => servicosExtras.has(s.id)).map(s => s.nome)
-    const extrasComMarca = Object.entries(selecoesComMarca).map(([cat, opt]) => {
-      const categoria = SERVICOS_COM_MARCA.find(s => s.id === cat)
-      return `${categoria?.nome}: ${opt.nome}`
-    })
+    const inclusos = SERVICOS_INCLUSOS.filter(s => servicosInclusos.has(s.id)).map(s => s.nome)
     const produtosNomes = Object.keys(produtosSelecionados).map(id => {
       const p = produtos.find(pr => pr.id === id)
       return p ? p.nome : ''
     }).filter(Boolean)
-    const extras = [...extrasSimples, ...extrasComMarca, ...produtosNomes].join(', ')
+    const extras = [...inclusos, ...produtosNomes].join(', ')
     try {
       const cordaCrObj = cordas.find(c => c.id === cordaCross)
       const hibridaInfo = tipoEnc === 'hibrida' && cordaCrObj
@@ -515,82 +444,22 @@ function NovoEncordoamentoPage() {
                 </div>
               )}
 
-              {/* SEÇÃO: Serviços Inclusos */}
+              {/* SEÇÃO: Inclusos */}
               <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Serviços Inclusos</p>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Inclusos (sem custo)</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {SERVICOS_SIMPLES.map(s => {
-                    const Icon = ICON_MAP[s.iconKey] || Circle
-                    return (
-                      <button key={s.id} onClick={() => toggleServicoSimples(s.id)}
-                        className={`flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-all border ${
-                          servicosExtras.has(s.id)
-                            ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
-                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4 flex-shrink-0" />
-                        <span className="flex-1 text-left">{s.nome}</span>
-                        {servicosExtras.has(s.id) && <Check className="w-4 h-4 text-emerald-600" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* SEÇÃO: Acessórios (com marcas) */}
-              <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Acessórios</p>
-                <div className="grid grid-cols-1 gap-2">
-                  {SERVICOS_COM_MARCA.map(cat => {
-                    const Icon = ICON_MAP[cat.iconKey] || Circle
-                    const selecionado = selecoesComMarca[cat.id]
-                    return (
-                      <div key={cat.id} className="relative">
-                        <button
-                          onClick={() => setMenuAberto(menuAberto === cat.id ? null : cat.id)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-all border ${
-                            selecionado
-                              ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
-                              : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4 flex-shrink-0" />
-                          <span className="flex-1 text-left">
-                            {cat.nome}
-                            {selecionado && (
-                              <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                                {selecionado.nome} · {formatCurrency(selecionado.preco)}
-                              </span>
-                            )}
-                          </span>
-                          {selecionado ? (
-                            <button onClick={(e) => { e.stopPropagation(); removerMarca(cat.id) }}
-                              className="p-1 rounded-full hover:bg-emerald-200 transition-colors">
-                              <X className="w-3 h-3" />
-                            </button>
-                          ) : (
-                            <ChevronDown className={`w-4 h-4 transition-transform ${menuAberto === cat.id ? 'rotate-180' : ''}`} />
-                          )}
-                        </button>
-
-                        {/* Dropdown de marcas */}
-                        {menuAberto === cat.id && !selecionado && (
-                          <div className="mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-10 relative animate-fadeIn">
-                            {cat.opcoes.map(opt => (
-                              <button key={opt.id}
-                                onClick={() => selecionarOpcaoMarca(cat.id, opt)}
-                                className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-emerald-50 transition-colors border-b border-gray-50 last:border-0"
-                              >
-                                <span className="text-gray-700 font-medium">{opt.nome}</span>
-                                <span className="text-emerald-600 font-semibold text-xs">{formatCurrency(opt.preco)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+                  {SERVICOS_INCLUSOS.map(s => (
+                    <button key={s.id} onClick={() => toggleIncluso(s.id)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                        servicosInclusos.has(s.id)
+                          ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="flex-1 text-left">{s.nome}</span>
+                      {servicosInclusos.has(s.id) && <Check className="w-4 h-4 text-emerald-600" />}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -699,21 +568,12 @@ function NovoEncordoamentoPage() {
                   <span>Encordoamento {cordaSel ? `(${cordaSel.nome})` : ''}</span>
                   <span>{formatCurrency(precoServico)}</span>
                 </div>
-                {SERVICOS_SIMPLES.filter(s => servicosExtras.has(s.id)).map(s => (
+                {SERVICOS_INCLUSOS.filter(s => servicosInclusos.has(s.id)).map(s => (
                   <div key={s.id} className="flex justify-between text-gray-500 text-xs">
                     <span>{s.nome}</span>
                     <span className="text-emerald-600">incluso</span>
                   </div>
                 ))}
-                {Object.entries(selecoesComMarca).map(([catId, opt]) => {
-                  const cat = SERVICOS_COM_MARCA.find(c => c.id === catId)
-                  return (
-                    <div key={catId} className="flex justify-between text-gray-600">
-                      <span>{cat?.nome}: <span className="text-gray-500">{opt.nome}</span></span>
-                      <span>+{formatCurrency(opt.preco)}</span>
-                    </div>
-                  )
-                })}
                 {Object.entries(produtosSelecionados).map(([id, preco]) => {
                   const p = produtos.find(pr => pr.id === id)
                   return (
