@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Plus, ChevronRight } from 'lucide-react'
+import { Search, Plus, ChevronRight, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/Toast'
 
@@ -23,7 +23,35 @@ export default function ClientesPage() {
   const [filtroTipo, setFiltroTipo] = useState('todos')
   const [pagina, setPagina] = useState(1)
   const [form, setForm] = useState({ nome: '', telefone: '', condominio: '', apartamento: '', centroReceita: 'loja' })
+  const [editandoCentro, setEditandoCentro] = useState<string | null>(null)
   const { toast } = useToast()
+
+  const LOCAIS = ['Cooper', 'Leal', 'Vitallis', 'CPB', 'Lorian', 'Tenis Ranch', 'Delivery', 'Torneio', 'Loja']
+
+  const excluirCliente = async (id: string, nome: string) => {
+    if (!confirm(`Excluir ${nome}? Todas as vendas deste cliente serão removidas.`)) return
+    try {
+      const res = await fetch(`/api/clientes/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Falha')
+      setClientes(prev => prev.filter(c => c.id !== id))
+      toast({ title: `${nome} excluído`, type: 'success' })
+    } catch {
+      toast({ title: 'Erro ao excluir. Verifique se há vendas vinculadas.', type: 'error' })
+    }
+  }
+
+  const alterarCentroCliente = async (id: string, centro: string) => {
+    setClientes(prev => prev.map(c => c.id === id ? { ...c, centroReceita: centro } : c))
+    setEditandoCentro(null)
+    try {
+      const res = await fetch(`/api/clientes/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ centroReceita: centro }),
+      })
+      if (!res.ok) throw new Error('Falha')
+      toast({ title: `Centro → ${centro}`, type: 'success' })
+    } catch { toast({ title: 'Erro ao alterar', type: 'error' }); carregar(busca) }
+  }
 
   const carregar = async (q = '') => {
     setLoading(true)
@@ -121,31 +149,48 @@ export default function ClientesPage() {
                   <p className="text-center text-gray-400 py-8 text-sm">Nenhum cliente encontrado</p>
                 )}
                 {paginados.map(c => (
-                  <Link
-                    key={c.id}
-                    href={`/clientes/${c.id}`}
-                    className="bg-white rounded-xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border border-gray-100 block"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-800 text-sm">{c.nome}</p>
-                        {c.centroReceita && (
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                  <div key={c.id} className="bg-white rounded-xl p-4 border border-gray-100 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <Link href={`/clientes/${c.id}`} className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-800 text-sm truncate">{c.nome}</p>
+                        <p className="text-xs text-gray-500">{c.telefone || 'Sem tel'}</p>
+                        {c.condominio && <p className="text-xs text-gray-400">{c.condominio} {c.apartamento && `- Apt ${c.apartamento}`}</p>}
+                      </Link>
+                      <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                        {c._count && <span className="text-xs text-gray-400">{c._count.encordoamentos} vendas</span>}
+                        <button onClick={() => excluirCliente(c.id, c.nome)}
+                          className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Excluir">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Centro de receita editável */}
+                    <div className="mt-2 flex items-center gap-1.5">
+                      {editandoCentro === c.id ? (
+                        <div className="flex flex-wrap gap-1">
+                          {LOCAIS.map(l => (
+                            <button key={l} onClick={() => alterarCentroCliente(c.id, l.toLowerCase())}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-all ${
+                                c.centroReceita === l.toLowerCase()
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              }`}>{l}</button>
+                          ))}
+                          <button onClick={() => setEditandoCentro(null)} className="text-gray-400 ml-0.5"><X className="w-3 h-3" /></button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setEditandoCentro(c.id)}
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             c.centroReceita === 'delivery' ? 'bg-orange-50 text-orange-600' :
                             c.centroReceita === 'torneio' ? 'bg-purple-50 text-purple-600' :
+                            c.centroReceita === 'cooper' ? 'bg-teal-50 text-teal-600' :
                             'bg-emerald-50 text-emerald-600'
                           }`}>
-                            {c.centroReceita.charAt(0).toUpperCase() + c.centroReceita.slice(1)}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">{c.telefone}</p>
-                      {c.condominio && (
-                        <p className="text-xs text-gray-400">{c.condominio} {c.apartamento && `- Apt ${c.apartamento}`}</p>
+                          {c.centroReceita ? c.centroReceita.charAt(0).toUpperCase() + c.centroReceita.slice(1) : 'Loja'}
+                        </button>
                       )}
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                  </Link>
+                  </div>
                 ))}
                 {total > 0 && (
                   <div className="flex items-center justify-between pt-2">

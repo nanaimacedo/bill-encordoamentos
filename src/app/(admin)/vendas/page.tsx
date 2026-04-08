@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone, MessageCircle, X, Copy, Send } from 'lucide-react'
+import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone, MessageCircle, X, Copy, Send, Trash2, MapPin } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import Link from 'next/link'
@@ -41,10 +41,10 @@ const PERIODOS = [
   { value: '2026-01', label: 'Jan' },
 ] as const
 
-const STATUS_OPTS = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'pendente', label: 'Pendentes' },
-  { value: 'concluido', label: 'Concluídos' },
+const CENTROS = [
+  { value: 'loja', label: 'Loja', color: 'bg-blue-50 text-blue-700' },
+  { value: 'cooper', label: 'Cooper', color: 'bg-teal-50 text-teal-700' },
+  { value: 'delivery', label: 'Delivery', color: 'bg-orange-50 text-orange-700' },
 ] as const
 
 export default function VendasPage() {
@@ -56,6 +56,7 @@ export default function VendasPage() {
   const [statusFiltro, setStatusFiltro] = useState('todos')
   const [cobranca, setCobranca] = useState<{ venda: Venda; template: number } | null>(null)
   const [msgCustom, setMsgCustom] = useState('')
+  const [editandoCentro, setEditandoCentro] = useState<string | null>(null)
   const { toast } = useToast()
 
   const carregar = useCallback(async () => {
@@ -89,13 +90,12 @@ export default function VendasPage() {
       `RELATÓRIO DE VENDAS - ${periodoLabel.toUpperCase()}`,
       `Gerado em: ${formatDateTime(new Date().toISOString())}`,
       `Total de vendas: ${resumo.quantidade}`,
+      `Raquetes: ${resumo.totalRaquetes}`,
       `Faturamento total: R$ ${resumo.total.toFixed(2)}`,
       `Recebido: R$ ${resumo.totalPago.toFixed(2)}`,
       `Pendente: R$ ${resumo.totalPendente.toFixed(2)}`,
-      `Ticket médio: R$ ${resumo.quantidade > 0 ? (resumo.total / resumo.quantidade).toFixed(2) : '0.00'}`,
       '',
     ].join('\n')
-
     const headers = 'Data,Cliente,Telefone,Corda,Tensão,Tipo,Valor,Status Pgto,Forma Pgto,Entrega,Centro\n'
     const rows = vendas.map(v =>
       `${formatDateTime(v.createdAt)},"${v.cliente.nome}","${v.cliente.telefone}","${v.corda?.nome || 'Avulsa'}",${v.tensao || ''}lbs,${v.tipo},${v.preco},${v.pagamento?.status || 'N/A'},${v.pagamento?.formaPagamento || 'N/A'},${v.entrega},${v.centroReceita}`
@@ -110,7 +110,6 @@ export default function VendasPage() {
   }
 
   const marcarPago = async (pagamentoId: string, forma: string, clienteNome: string) => {
-    // Atualização otimista — muda no local instantaneamente, sem reload
     setVendas(prev => prev.map(v =>
       v.pagamento?.id === pagamentoId
         ? { ...v, pagamento: { ...v.pagamento, status: 'pago', formaPagamento: forma } }
@@ -119,140 +118,138 @@ export default function VendasPage() {
     setResumo(prev => {
       const venda = vendas.find(v => v.pagamento?.id === pagamentoId)
       const valor = venda?.preco || 0
-      return {
-        ...prev,
-        totalPago: prev.totalPago + valor,
-        totalPendente: prev.totalPendente - valor,
-      }
+      return { ...prev, totalPago: prev.totalPago + valor, totalPendente: prev.totalPendente - valor }
     })
-
     try {
       const res = await fetch(`/api/pagamentos/${pagamentoId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'pago', formaPagamento: forma }),
       })
-      if (!res.ok) {
-        // Reverte se falhar
-        carregar()
-        throw new Error('Falha')
-      }
+      if (!res.ok) { carregar(); throw new Error('Falha') }
       toast({ title: `${clienteNome} — ${forma.toUpperCase()}`, type: 'success' })
-    } catch {
-      toast({ title: 'Erro ao confirmar pagamento', type: 'error' })
-    }
+    } catch { toast({ title: 'Erro ao confirmar pagamento', type: 'error' }) }
   }
 
   const desfazerPagamento = async (pagamentoId: string, clienteNome: string, valor: number) => {
-    // Otimista
     setVendas(prev => prev.map(v =>
       v.pagamento?.id === pagamentoId
         ? { ...v, pagamento: { ...v.pagamento, status: 'pendente', formaPagamento: null } }
         : v
     ))
-    setResumo(prev => ({
-      ...prev,
-      totalPago: prev.totalPago - valor,
-      totalPendente: prev.totalPendente + valor,
-    }))
-
+    setResumo(prev => ({ ...prev, totalPago: prev.totalPago - valor, totalPendente: prev.totalPendente + valor }))
     try {
       const res = await fetch(`/api/pagamentos/${pagamentoId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'pendente', formaPagamento: '' }),
       })
       if (!res.ok) { carregar(); throw new Error('Falha') }
       toast({ title: `${clienteNome} — voltou para pendente`, type: 'success' })
-    } catch {
-      toast({ title: 'Erro ao desfazer pagamento', type: 'error' })
-    }
+    } catch { toast({ title: 'Erro ao desfazer pagamento', type: 'error' }) }
+  }
+
+  const alterarCentro = async (vendaId: string, novoCentro: string) => {
+    setVendas(prev => prev.map(v => v.id === vendaId ? { ...v, centroReceita: novoCentro, entrega: novoCentro === 'delivery' ? 'delivery' : 'retirada' } : v))
+    setEditandoCentro(null)
+    try {
+      const res = await fetch(`/api/encordoamentos/${vendaId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ centroReceita: novoCentro, entrega: novoCentro === 'delivery' ? 'delivery' : 'retirada' }),
+      })
+      if (!res.ok) { carregar(); throw new Error('Falha') }
+      toast({ title: `Centro → ${novoCentro.toUpperCase()}`, type: 'success' })
+    } catch { toast({ title: 'Erro ao alterar centro', type: 'error' }) }
+  }
+
+  const excluirVenda = async (vendaId: string, clienteNome: string) => {
+    if (!confirm(`Excluir venda de ${clienteNome}?`)) return
+    setVendas(prev => prev.filter(v => v.id !== vendaId))
+    setResumo(prev => {
+      const venda = vendas.find(v => v.id === vendaId)
+      const valor = venda?.preco || 0
+      const isPago = venda?.pagamento?.status === 'pago'
+      return {
+        ...prev,
+        quantidade: prev.quantidade - 1,
+        total: prev.total - valor,
+        totalPago: isPago ? prev.totalPago - valor : prev.totalPago,
+        totalPendente: !isPago ? prev.totalPendente - valor : prev.totalPendente,
+      }
+    })
+    try {
+      await fetch(`/api/encordoamentos/${vendaId}`, { method: 'DELETE' })
+      toast({ title: `Venda de ${clienteNome} excluída`, type: 'success' })
+    } catch { toast({ title: 'Erro ao excluir', type: 'error' }); carregar() }
   }
 
   // --- Cobrança WhatsApp ---
   const PIX_CHAVE = '11952323401'
   const PIX_NOME = 'Elioenai P Macedo'
-
   const getPrimeiroNome = (nome: string) => nome.split(' ')[0]
-
-  const getSaudacao = () => {
-    const h = new Date().getHours()
-    if (h < 12) return 'Bom dia'
-    if (h < 18) return 'Boa tarde'
-    return 'Boa noite'
-  }
+  const getSaudacao = () => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite' }
 
   const getDetalhesVenda = (v: Venda) => {
-    const itens: string[] = []
-    // Extrair produtos das observações
     const obs = v.observacoes || ''
     const prodMatch = obs.match(/Produto:\s*(.+?)(\s*\||$)/)
-    if (prodMatch) {
-      itens.push(`${prodMatch[1].trim()}: ${formatCurrency(v.preco)}`)
-    } else if (v.corda) {
-      itens.push(`${v.corda.nome} ${v.tensao ? v.tensao + 'lbs' : ''}: ${formatCurrency(v.preco)}`)
-    } else {
-      itens.push(`Serviço: ${formatCurrency(v.preco)}`)
-    }
-    return itens.join('\n')
+    const produto = prodMatch ? prodMatch[1].trim() : v.corda?.nome || 'Serviço'
+    return `${produto}: ${formatCurrency(v.preco)}`
+  }
+
+  // Buscar todas as vendas pendentes do mesmo cliente para a cobrança
+  const getVendasPendentesCliente = (clienteId: string) => {
+    return vendas.filter(v => v.cliente.id === clienteId && v.pagamento?.status === 'pendente')
   }
 
   const gerarMensagem = (v: Venda, template: number): string => {
     const nome = getPrimeiroNome(v.cliente.nome)
     const saudacao = getSaudacao()
-    const detalhes = getDetalhesVenda(v)
-    const total = formatCurrency(v.preco)
+    // Pegar TODAS as vendas pendentes do cliente
+    const pendentes = getVendasPendentesCliente(v.cliente.id)
+    const detalhes = pendentes.map(p => {
+      const obs = p.observacoes || ''
+      const prodMatch = obs.match(/Produto:\s*(.+?)(\s*\||$)/)
+      const produto = prodMatch ? prodMatch[1].trim() : p.corda?.nome || 'Serviço'
+      return `• ${produto}: ${formatCurrency(p.preco)}`
+    }).join('\n')
+    const totalPendente = pendentes.reduce((sum, p) => sum + p.preco, 0)
+    const total = formatCurrency(totalPendente)
 
     const templates = [
-      // Template 1: Cobrança gentil
-      `${saudacao}, ${nome}! Tudo bem?! 😊\n\nSegue os dados do seu pedido em aberto:\n\n${detalhes}\n\n*Total: ${total}*\n\n💳 *Chave PIX:* ${PIX_CHAVE}\n👤 *${PIX_NOME}*\n\nQualquer dúvida, estou à disposição! 🎾`,
-
-      // Template 2: Lembrete amigável
-      `Oi, ${nome}! ${saudacao}! 👋\n\nPassando pra lembrar do valor em aberto:\n\n${detalhes}\n\n*Total: ${total}*\n\nPode transferir via PIX:\n💳 *${PIX_CHAVE}*\n👤 *${PIX_NOME}*\n\nObrigado! 🙏`,
-
-      // Template 3: Direto ao ponto
-      `${saudacao}, ${nome}!\n\nValor pendente: *${total}*\n\n${detalhes}\n\nPIX: *${PIX_CHAVE}*\n${PIX_NOME}\n\nAgradeço! 🎾`,
+      `${saudacao}, ${nome}! Tudo bem?! 😊\n\nSegue os itens em aberto:\n\n${detalhes}\n\n*Total: ${total}*\n\n💳 *Chave PIX:* ${PIX_CHAVE}\n👤 *${PIX_NOME}*\n\nQualquer dúvida, estou à disposição! 🎾`,
+      `Oi, ${nome}! ${saudacao}! 👋\n\nPassando pra lembrar dos valores em aberto:\n\n${detalhes}\n\n*Total: ${total}*\n\nPode transferir via PIX:\n💳 *${PIX_CHAVE}*\n👤 *${PIX_NOME}*\n\nObrigado! 🙏`,
+      `${saudacao}, ${nome}!\n\nValores pendentes:\n\n${detalhes}\n\n*Total: ${total}*\n\nPIX: *${PIX_CHAVE}*\n${PIX_NOME}\n\nAgradeço! 🎾`,
     ]
-
     return templates[template] || templates[0]
   }
 
   const abrirCobranca = (v: Venda) => {
-    const msg = gerarMensagem(v, 0)
     setCobranca({ venda: v, template: 0 })
-    setMsgCustom(msg)
+    setMsgCustom(gerarMensagem(v, 0))
   }
-
   const trocarTemplate = (template: number) => {
     if (!cobranca) return
     setCobranca({ ...cobranca, template })
     setMsgCustom(gerarMensagem(cobranca.venda, template))
   }
-
   const enviarWhatsApp = () => {
     if (!cobranca) return
     const tel = cobranca.venda.cliente.telefone.replace(/\D/g, '')
     const telFormatado = tel.startsWith('55') ? tel : `55${tel}`
-    const url = `https://wa.me/${telFormatado}?text=${encodeURIComponent(msgCustom)}`
-    window.open(url, '_blank')
+    window.open(`https://wa.me/${telFormatado}?text=${encodeURIComponent(msgCustom)}`, '_blank')
     setCobranca(null)
     toast({ title: `Cobrança enviada para ${cobranca.venda.cliente.nome}`, type: 'success' })
   }
-
-  const copiarMensagem = () => {
-    navigator.clipboard.writeText(msgCustom)
-    toast({ title: 'Mensagem copiada!', type: 'success' })
-  }
+  const copiarMensagem = () => { navigator.clipboard.writeText(msgCustom); toast({ title: 'Mensagem copiada!', type: 'success' }) }
 
   const getStatusIcon = (venda: Venda) => {
     if (venda.pagamento?.status === 'pago') return <CheckCircle className="w-4 h-4 text-green-500" />
-    if (venda.status === 'pendente') return <Clock className="w-4 h-4 text-amber-500" />
-    return <XCircle className="w-4 h-4 text-red-500" />
+    return <Clock className="w-4 h-4 text-amber-500" />
   }
+  const getStatusLabel = (venda: Venda) => venda.pagamento?.status === 'pago' ? 'Pago' : 'Pendente'
 
-  const getStatusLabel = (venda: Venda) => {
-    if (venda.pagamento?.status === 'pago') return 'Pago'
-    return 'Pendente'
+  // Filtro por pagamento via badges
+  const filtrarPorStatus = (status: string) => {
+    if (statusFiltro === status) setStatusFiltro('todos')
+    else setStatusFiltro(status)
   }
 
   return (
@@ -270,7 +267,7 @@ export default function VendasPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards — clicáveis para filtrar */}
       <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
         <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
           <p className="text-xs text-blue-600 uppercase font-semibold">Vendas</p>
@@ -284,14 +281,20 @@ export default function VendasPage() {
           <p className="text-xs text-emerald-600 uppercase font-semibold">Total</p>
           <p className="text-xl font-bold text-emerald-700">{formatCurrency(resumo.total)}</p>
         </div>
-        <div className="bg-green-50 rounded-xl p-3 border border-green-100">
+        <button onClick={() => filtrarPorStatus('pago')}
+          className={`rounded-xl p-3 border text-left transition-all ${
+            statusFiltro === 'pago' ? 'ring-2 ring-green-500 border-green-300 bg-green-100' : 'bg-green-50 border-green-100'
+          }`}>
           <p className="text-xs text-green-600 uppercase font-semibold">Recebido</p>
           <p className="text-xl font-bold text-green-700">{formatCurrency(resumo.totalPago)}</p>
-        </div>
-        <div className="bg-red-50 rounded-xl p-3 border border-red-100">
+        </button>
+        <button onClick={() => filtrarPorStatus('pendente')}
+          className={`rounded-xl p-3 border text-left transition-all ${
+            statusFiltro === 'pendente' ? 'ring-2 ring-red-500 border-red-300 bg-red-100' : 'bg-red-50 border-red-100'
+          }`}>
           <p className="text-xs text-red-600 uppercase font-semibold">Pendente</p>
           <p className="text-xl font-bold text-red-700">{formatCurrency(resumo.totalPendente)}</p>
-        </div>
+        </button>
       </div>
 
       {/* Ticket médio */}
@@ -304,48 +307,31 @@ export default function VendasPage() {
 
       {/* Filtros */}
       <div className="space-y-3">
-        {/* Período */}
         <div className="flex gap-2 overflow-x-auto">
           {PERIODOS.map(p => (
-            <button
-              key={p.value}
-              onClick={() => setPeriodo(p.value)}
+            <button key={p.value} onClick={() => setPeriodo(p.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                periodo === p.value
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {p.label}
-            </button>
+                periodo === p.value ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}>{p.label}</button>
           ))}
         </div>
-
-        {/* Busca + Status */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar cliente..."
-              value={buscaDebounced}
+            <input type="text" placeholder="Buscar cliente..." value={buscaDebounced}
               onChange={e => setBuscaDebounced(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-            />
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
-          <select
-            value={statusFiltro}
-            onChange={e => setStatusFiltro(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-          >
-            {STATUS_OPTS.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
+          {statusFiltro !== 'todos' && (
+            <button onClick={() => setStatusFiltro('todos')}
+              className="px-3 py-2.5 rounded-lg bg-gray-200 text-gray-600 text-xs font-medium flex items-center gap-1">
+              <X className="w-3 h-3" /> Limpar filtro
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Lista de Vendas — pendentes primeiro, pagos embaixo */}
+      {/* Lista de Vendas */}
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4].map(i => <div key={i} className="bg-white rounded-xl p-4 animate-pulse h-24" />)}
@@ -361,23 +347,16 @@ export default function VendasPage() {
         const pagosCount = vendas.filter(v => v.pagamento?.status === 'pago').length
         return (
         <div className="space-y-2">
-          {/* Contadores */}
           {pendentesCount > 0 && pagosCount > 0 && (
             <div className="flex items-center gap-3 text-xs font-medium">
-              <span className="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">
-                {pendentesCount} pendente{pendentesCount !== 1 ? 's' : ''}
-              </span>
-              <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
-                {pagosCount} pago{pagosCount !== 1 ? 's' : ''}
-              </span>
+              <span className="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">{pendentesCount} pendente{pendentesCount !== 1 ? 's' : ''}</span>
+              <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded-full">{pagosCount} pago{pagosCount !== 1 ? 's' : ''}</span>
             </div>
           )}
           {vendas.map((v) => (
             <>
             <div key={v.id} className={`rounded-xl p-4 border transition-all duration-300 ${
-              v.pagamento?.status === 'pago'
-                ? 'bg-green-50/50 border-green-200 opacity-70'
-                : 'bg-white border-gray-100 hover:border-emerald-200'
+              v.pagamento?.status === 'pago' ? 'bg-green-50/50 border-green-200 opacity-70' : 'bg-white border-gray-100 hover:border-emerald-200'
             }`}>
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
@@ -394,12 +373,26 @@ export default function VendasPage() {
                     {v.tipo === 'hibrida' && (
                       <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">Híbrida</span>
                     )}
-                    <span className={`px-2 py-0.5 rounded-full font-medium ${
-                      v.entrega === 'delivery' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
-                    }`}>
-                      {v.entrega === 'delivery' ? 'Delivery' : 'Loja'}
-                    </span>
-                    {v.pagamento?.formaPagamento && (
+                    {/* Centro de receita — clicável para editar */}
+                    {editandoCentro === v.id ? (
+                      <div className="flex gap-1">
+                        {CENTROS.map(c => (
+                          <button key={c.value} onClick={() => alterarCentro(v.id, c.value)}
+                            className={`px-2 py-0.5 rounded-full font-medium text-xs transition-all ${c.color} ${
+                              v.centroReceita === c.value ? 'ring-2 ring-offset-1 ring-gray-400' : ''
+                            }`}>{c.label}</button>
+                        ))}
+                        <button onClick={() => setEditandoCentro(null)} className="text-gray-400 ml-1"><X className="w-3 h-3" /></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setEditandoCentro(v.id)}
+                        className={`px-2 py-0.5 rounded-full font-medium ${
+                          CENTROS.find(c => c.value === v.centroReceita)?.color || 'bg-blue-50 text-blue-700'
+                        }`}>
+                        {CENTROS.find(c => c.value === v.centroReceita)?.label || v.centroReceita === 'delivery' ? 'Delivery' : v.centroReceita === 'cooper' ? 'Cooper' : 'Loja'}
+                      </button>
+                    )}
+                    {v.pagamento?.formaPagamento && v.pagamento.formaPagamento !== 'importado' && (
                       <span className="text-gray-400 uppercase">{v.pagamento.formaPagamento}</span>
                     )}
                   </div>
@@ -412,21 +405,16 @@ export default function VendasPage() {
                   </p>
                 </div>
                 <div className="text-right ml-3 flex-shrink-0">
-                  <p className={`text-lg font-bold ${
-                    v.pagamento?.status === 'pago' ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <p className={`text-lg font-bold ${v.pagamento?.status === 'pago' ? 'text-green-600' : 'text-red-600'}`}>
                     {formatCurrency(v.preco)}
                   </p>
-                  <p className={`text-xs font-medium ${
-                    v.pagamento?.status === 'pago' ? 'text-green-500' : 'text-amber-500'
-                  }`}>
+                  <p className={`text-xs font-medium ${v.pagamento?.status === 'pago' ? 'text-green-500' : 'text-amber-500'}`}>
                     {getStatusLabel(v)}
                   </p>
                 </div>
               </div>
-              {/* Ações: pagamento (se pendente) + nova venda */}
+              {/* Ações */}
               <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
-                {/* Botões de pagamento — só para vendas pendentes */}
                 {v.pagamento && v.pagamento.status === 'pendente' && (
                   <div className="space-y-2">
                     <div className="flex gap-2">
@@ -449,21 +437,21 @@ export default function VendasPage() {
                     </button>
                   </div>
                 )}
-                {/* Desfazer pagamento — só para itens pagos */}
                 {v.pagamento && v.pagamento.status === 'pago' && (
                   <button onClick={() => desfazerPagamento(v.pagamento!.id, v.cliente.nome, v.preco)}
                     className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100 transition-colors">
                     <XCircle className="w-3.5 h-3.5" /> Desfazer pagamento
                   </button>
                 )}
-                {/* Ação rápida: refazer venda */}
                 <div className="flex gap-2">
-                  <Link
-                    href={`/encordoamento?clienteId=${v.cliente.id}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors"
-                  >
-                    <RotateCcw className="w-3 h-3" /> Nova venda p/ {v.cliente.nome.split(' ')[0]}
+                  <Link href={`/encordoamento?clienteId=${v.cliente.id}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors">
+                    <RotateCcw className="w-3 h-3" /> Nova venda
                   </Link>
+                  <button onClick={() => excluirVenda(v.id, v.cliente.nome)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition-colors">
+                    <Trash2 className="w-3 h-3" /> Excluir
+                  </button>
                 </div>
               </div>
             </div>
@@ -475,43 +463,29 @@ export default function VendasPage() {
       {cobranca && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] flex flex-col">
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-shrink-0">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Cobrar via WhatsApp</h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {cobranca.venda.cliente.nome} · {formatCurrency(cobranca.venda.preco)}
+                  {cobranca.venda.cliente.nome} · {getVendasPendentesCliente(cobranca.venda.cliente.id).length} itens pendentes
                 </p>
               </div>
               <button onClick={() => setCobranca(null)} className="p-2 rounded-lg hover:bg-gray-100">
                 <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
-
-            {/* Templates */}
             <div className="flex gap-2 p-4 pb-2 flex-shrink-0">
               {['Gentil', 'Lembrete', 'Direto'].map((label, i) => (
                 <button key={i} onClick={() => trocarTemplate(i)}
                   className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    cobranca.template === i
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}>
-                  {label}
-                </button>
+                    cobranca.template === i ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}>{label}</button>
               ))}
             </div>
-
-            {/* Mensagem editável */}
             <div className="px-4 py-2 flex-1 overflow-y-auto">
-              <textarea
-                value={msgCustom}
-                onChange={e => setMsgCustom(e.target.value)}
-                className="w-full h-56 px-3 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-gray-50 leading-relaxed"
-              />
+              <textarea value={msgCustom} onChange={e => setMsgCustom(e.target.value)}
+                className="w-full h-56 px-3 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-gray-50 leading-relaxed" />
             </div>
-
-            {/* Ações */}
             <div className="flex gap-3 p-4 border-t border-gray-100 flex-shrink-0">
               <button onClick={copiarMensagem}
                 className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 font-medium hover:bg-gray-50 transition-colors">
