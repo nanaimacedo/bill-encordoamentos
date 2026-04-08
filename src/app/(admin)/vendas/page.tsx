@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone } from 'lucide-react'
+import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone, MessageCircle, X, Copy, Send } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import Link from 'next/link'
@@ -49,6 +49,8 @@ export default function VendasPage() {
   const [periodo, setPeriodo] = useState<string>('hoje')
   const [busca, setBusca] = useState('')
   const [statusFiltro, setStatusFiltro] = useState('todos')
+  const [cobranca, setCobranca] = useState<{ venda: Venda; template: number } | null>(null)
+  const [msgCustom, setMsgCustom] = useState('')
   const { toast } = useToast()
 
   const carregar = useCallback(async () => {
@@ -134,6 +136,81 @@ export default function VendasPage() {
     } catch {
       toast({ title: 'Erro ao confirmar pagamento', type: 'error' })
     }
+  }
+
+  // --- Cobrança WhatsApp ---
+  const PIX_CHAVE = '11952323401'
+  const PIX_NOME = 'Elioenai P Macedo'
+
+  const getPrimeiroNome = (nome: string) => nome.split(' ')[0]
+
+  const getSaudacao = () => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Bom dia'
+    if (h < 18) return 'Boa tarde'
+    return 'Boa noite'
+  }
+
+  const getDetalhesVenda = (v: Venda) => {
+    const itens: string[] = []
+    // Extrair produtos das observações
+    const obs = v.observacoes || ''
+    const prodMatch = obs.match(/Produto:\s*(.+?)(\s*\||$)/)
+    if (prodMatch) {
+      itens.push(`${prodMatch[1].trim()}: ${formatCurrency(v.preco)}`)
+    } else if (v.corda) {
+      itens.push(`${v.corda.nome} ${v.tensao ? v.tensao + 'lbs' : ''}: ${formatCurrency(v.preco)}`)
+    } else {
+      itens.push(`Serviço: ${formatCurrency(v.preco)}`)
+    }
+    return itens.join('\n')
+  }
+
+  const gerarMensagem = (v: Venda, template: number): string => {
+    const nome = getPrimeiroNome(v.cliente.nome)
+    const saudacao = getSaudacao()
+    const detalhes = getDetalhesVenda(v)
+    const total = formatCurrency(v.preco)
+
+    const templates = [
+      // Template 1: Cobrança gentil
+      `${saudacao}, ${nome}! Tudo bem?! 😊\n\nSegue os dados do seu pedido em aberto:\n\n${detalhes}\n\n*Total: ${total}*\n\n💳 *Chave PIX:* ${PIX_CHAVE}\n👤 *${PIX_NOME}*\n\nQualquer dúvida, estou à disposição! 🎾`,
+
+      // Template 2: Lembrete amigável
+      `Oi, ${nome}! ${saudacao}! 👋\n\nPassando pra lembrar do valor em aberto:\n\n${detalhes}\n\n*Total: ${total}*\n\nPode transferir via PIX:\n💳 *${PIX_CHAVE}*\n👤 *${PIX_NOME}*\n\nObrigado! 🙏`,
+
+      // Template 3: Direto ao ponto
+      `${saudacao}, ${nome}!\n\nValor pendente: *${total}*\n\n${detalhes}\n\nPIX: *${PIX_CHAVE}*\n${PIX_NOME}\n\nAgradeço! 🎾`,
+    ]
+
+    return templates[template] || templates[0]
+  }
+
+  const abrirCobranca = (v: Venda) => {
+    const msg = gerarMensagem(v, 0)
+    setCobranca({ venda: v, template: 0 })
+    setMsgCustom(msg)
+  }
+
+  const trocarTemplate = (template: number) => {
+    if (!cobranca) return
+    setCobranca({ ...cobranca, template })
+    setMsgCustom(gerarMensagem(cobranca.venda, template))
+  }
+
+  const enviarWhatsApp = () => {
+    if (!cobranca) return
+    const tel = cobranca.venda.cliente.telefone.replace(/\D/g, '')
+    const telFormatado = tel.startsWith('55') ? tel : `55${tel}`
+    const url = `https://wa.me/${telFormatado}?text=${encodeURIComponent(msgCustom)}`
+    window.open(url, '_blank')
+    setCobranca(null)
+    toast({ title: `Cobrança enviada para ${cobranca.venda.cliente.nome}`, type: 'success' })
+  }
+
+  const copiarMensagem = () => {
+    navigator.clipboard.writeText(msgCustom)
+    toast({ title: 'Mensagem copiada!', type: 'success' })
   }
 
   const getStatusIcon = (venda: Venda) => {
@@ -324,18 +401,24 @@ export default function VendasPage() {
               <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
                 {/* Botões de pagamento — só para vendas pendentes */}
                 {v.pagamento && v.pagamento.status === 'pendente' && (
-                  <div className="flex gap-2">
-                    <button onClick={() => marcarPago(v.pagamento!.id, 'pix', v.cliente.nome)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
-                      <Smartphone className="w-3.5 h-3.5" /> PIX
-                    </button>
-                    <button onClick={() => marcarPago(v.pagamento!.id, 'dinheiro', v.cliente.nome)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
-                      <Banknote className="w-3.5 h-3.5" /> Dinheiro
-                    </button>
-                    <button onClick={() => marcarPago(v.pagamento!.id, 'cartao', v.cliente.nome)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
-                      <CreditCard className="w-3.5 h-3.5" /> Cartão
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <button onClick={() => marcarPago(v.pagamento!.id, 'pix', v.cliente.nome)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
+                        <Smartphone className="w-3.5 h-3.5" /> PIX
+                      </button>
+                      <button onClick={() => marcarPago(v.pagamento!.id, 'dinheiro', v.cliente.nome)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
+                        <Banknote className="w-3.5 h-3.5" /> Dinheiro
+                      </button>
+                      <button onClick={() => marcarPago(v.pagamento!.id, 'cartao', v.cliente.nome)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
+                        <CreditCard className="w-3.5 h-3.5" /> Cartão
+                      </button>
+                    </div>
+                    <button onClick={() => abrirCobranca(v)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors">
+                      <MessageCircle className="w-3.5 h-3.5" /> Cobrar via WhatsApp
                     </button>
                   </div>
                 )}
@@ -353,6 +436,61 @@ export default function VendasPage() {
           </>))}
         </div>
         )})()}
+
+      {/* Modal Cobrança WhatsApp */}
+      {cobranca && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Cobrar via WhatsApp</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {cobranca.venda.cliente.nome} · {formatCurrency(cobranca.venda.preco)}
+                </p>
+              </div>
+              <button onClick={() => setCobranca(null)} className="p-2 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            {/* Templates */}
+            <div className="flex gap-2 p-4 pb-2 flex-shrink-0">
+              {['Gentil', 'Lembrete', 'Direto'].map((label, i) => (
+                <button key={i} onClick={() => trocarTemplate(i)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    cobranca.template === i
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Mensagem editável */}
+            <div className="px-4 py-2 flex-1 overflow-y-auto">
+              <textarea
+                value={msgCustom}
+                onChange={e => setMsgCustom(e.target.value)}
+                className="w-full h-56 px-3 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-gray-50 leading-relaxed"
+              />
+            </div>
+
+            {/* Ações */}
+            <div className="flex gap-3 p-4 border-t border-gray-100 flex-shrink-0">
+              <button onClick={copiarMensagem}
+                className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 font-medium hover:bg-gray-50 transition-colors">
+                <Copy className="w-4 h-4" /> Copiar
+              </button>
+              <button onClick={enviarWhatsApp}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition-colors">
+                <Send className="w-4 h-4" /> Enviar WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
