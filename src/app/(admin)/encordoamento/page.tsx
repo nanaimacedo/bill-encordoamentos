@@ -70,6 +70,8 @@ function NovoEncordoamentoPage() {
   const [entrega, setEntrega] = useState<'retirada' | 'delivery'>('retirada')
   const [enderecoEntrega, setEnderecoEntrega] = useState('')
   const [taxaDelivery, setTaxaDelivery] = useState<number>(10)
+  const [cordasExtras, setCordasExtras] = useState<Record<string, { preco: number; qtd: number }>>({})
+  const [buscaCorda, setBuscaCorda] = useState('')
   const [servicosInclusos, setServicosInclusos] = useState<Set<string>>(new Set())
   const [buscaProduto, setBuscaProduto] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -143,6 +145,25 @@ function NovoEncordoamentoPage() {
     })
   }
 
+  const addCordaExtra = (cordaId: string, preco: number) => {
+    setCordasExtras(prev => {
+      const existing = prev[cordaId]
+      return { ...prev, [cordaId]: { preco, qtd: existing ? existing.qtd + 1 : 1 } }
+    })
+  }
+
+  const removeCordaExtra = (cordaId: string) => {
+    setCordasExtras(prev => {
+      const existing = prev[cordaId]
+      if (!existing || existing.qtd <= 1) {
+        const next = { ...prev }
+        delete next[cordaId]
+        return next
+      }
+      return { ...prev, [cordaId]: { ...existing, qtd: existing.qtd - 1 } }
+    })
+  }
+
   const addProduto = (produtoId: string, preco: number) => {
     setProdutosSelecionados(prev => {
       const existing = prev[produtoId]
@@ -162,8 +183,9 @@ function NovoEncordoamentoPage() {
     })
   }
 
+  const totalCordasExtras = Object.values(cordasExtras).reduce((sum, c) => sum + c.preco * c.qtd, 0)
   const totalProdutos = Object.values(produtosSelecionados).reduce((sum, p) => sum + p.preco * p.qtd, 0)
-  const totalExtras = totalProdutos
+  const totalExtras = totalProdutos + totalCordasExtras
   const precoServico = preco
   const precoDelivery = entrega === 'delivery' ? taxaDelivery : 0
   const subtotal = precoServico + totalExtras + precoDelivery + valorExtra
@@ -196,8 +218,11 @@ function NovoEncordoamentoPage() {
     setObservacoes('')
     setEntrega('retirada')
     setEnderecoEntrega('')
+    setCordasExtras({})
+    setBuscaCorda('')
     setServicosInclusos(new Set())
     setProdutosSelecionados({})
+    setBuscaProduto('')
     setBusca('')
     setLastEnc(null)
   }
@@ -205,12 +230,16 @@ function NovoEncordoamentoPage() {
   const salvar = async () => {
     if (!clienteSelecionado || (!cordaSelecionada && Object.keys(produtosSelecionados).length === 0)) return
     setSalvando(true)
+    const cordasExtrasNomes = Object.entries(cordasExtras).map(([id, { qtd }]) => {
+      const c = cordas.find(co => co.id === id)
+      return c ? `${c.nome}${qtd > 1 ? ` x${qtd}` : ''}` : ''
+    }).filter(Boolean)
     const inclusos = SERVICOS_INCLUSOS.filter(s => servicosInclusos.has(s.id)).map(s => s.nome)
     const produtosNomes = Object.entries(produtosSelecionados).map(([id, { qtd }]) => {
       const p = produtos.find(pr => pr.id === id)
       return p ? `${p.nome}${qtd > 1 ? ` x${qtd}` : ''}` : ''
     }).filter(Boolean)
-    const extras = [...inclusos, ...produtosNomes].join(', ')
+    const extras = [...cordasExtrasNomes, ...inclusos, ...produtosNomes].join(', ')
     try {
       const cordaCrObj = cordas.find(c => c.id === cordaCross)
       const hibridaInfo = tipoEnc === 'hibrida' && cordaCrObj
@@ -455,6 +484,50 @@ function NovoEncordoamentoPage() {
                 </div>
               )}
 
+              {/* SEÇÃO: Cordas Avulsas (venda sem encordoar) */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
+                  Cordas (venda avulsa) {Object.keys(cordasExtras).length > 0 && (
+                    <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full ml-1">
+                      {Object.values(cordasExtras).reduce((s, c) => s + c.qtd, 0)} un
+                    </span>
+                  )}
+                </p>
+                <input type="text" value={buscaCorda} onChange={e => setBuscaCorda(e.target.value)}
+                  placeholder="Buscar corda..."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2" />
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {cordas
+                    .filter(c => !buscaCorda || c.nome.toLowerCase().includes(buscaCorda.toLowerCase()) || c.marca.toLowerCase().includes(buscaCorda.toLowerCase()))
+                    .map(c => {
+                      const sel = cordasExtras[c.id]
+                      return (
+                        <div key={c.id}
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
+                            sel ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-600'
+                          }`}>
+                          <span className="truncate flex-1 min-w-0">{c.nome} <span className="text-xs text-gray-400">- {c.marca}</span></span>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <span className="text-xs font-semibold">{formatCurrency(c.preco)}</span>
+                            {sel ? (
+                              <div className="flex items-center gap-1 bg-white rounded-lg border border-emerald-300 px-1">
+                                <button onClick={() => removeCordaExtra(c.id)}
+                                  className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded font-bold text-sm">-</button>
+                                <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
+                                <button onClick={() => addCordaExtra(c.id, c.preco)}
+                                  className="w-6 h-6 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded font-bold text-sm">+</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => addCordaExtra(c.id, c.preco)}
+                                className="w-6 h-6 flex items-center justify-center bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">+</button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+
               {/* SEÇÃO: Inclusos */}
               <div>
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Inclusos (sem custo)</p>
@@ -618,6 +691,15 @@ function NovoEncordoamentoPage() {
                   <span>Encordoamento {cordaSel ? `(${cordaSel.nome})` : ''}</span>
                   <span>{formatCurrency(precoServico)}</span>
                 </div>
+                {Object.entries(cordasExtras).map(([id, { preco: p, qtd }]) => {
+                  const c = cordas.find(co => co.id === id)
+                  return (
+                    <div key={id} className="flex justify-between text-gray-600">
+                      <span className="truncate mr-2">{c?.nome} {qtd > 1 && <span className="text-xs text-gray-400">x{qtd}</span>}</span>
+                      <span className="flex-shrink-0">+{formatCurrency(p * qtd)}</span>
+                    </div>
+                  )
+                })}
                 {SERVICOS_INCLUSOS.filter(s => servicosInclusos.has(s.id)).map(s => (
                   <div key={s.id} className="flex justify-between text-gray-500 text-xs">
                     <span>{s.nome}</span>
