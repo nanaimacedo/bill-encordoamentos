@@ -101,6 +101,8 @@ function NovoEncordoamentoPage() {
   const { toast } = useToast()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [cordas, setCordas] = useState<Corda[]>([])
+  const [produtos, setProdutos] = useState<{ id: string; nome: string; categoria: string; preco: number }[]>([])
+  const [produtosSelecionados, setProdutosSelecionados] = useState<Record<string, number>>({})
   const [busca, setBusca] = useState('')
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -147,10 +149,11 @@ function NovoEncordoamentoPage() {
     setClientes(await res.json())
   }, [])
 
-  // Carregar últimos clientes e cordas ao abrir
+  // Carregar últimos clientes, cordas e produtos ao abrir
   useEffect(() => {
     fetch('/api/cordas').then(r => r.json()).then(setCordas)
-    buscarClientes('') // carrega todos os clientes
+    fetch('/api/produtos').then(r => r.json()).then(setProdutos)
+    buscarClientes('')
   }, [buscarClientes])
 
   useEffect(() => {
@@ -202,9 +205,19 @@ function NovoEncordoamentoPage() {
     })
   }
 
+  const toggleProduto = (produtoId: string, preco: number) => {
+    setProdutosSelecionados(prev => {
+      const next = { ...prev }
+      if (next[produtoId]) delete next[produtoId]
+      else next[produtoId] = preco
+      return next
+    })
+  }
+
   const totalSimples = SERVICOS_SIMPLES.filter(s => servicosExtras.has(s.id)).reduce((sum, s) => sum + s.preco, 0)
   const totalMarca = Object.values(selecoesComMarca).reduce((sum, s) => sum + s.preco, 0)
-  const totalExtras = totalSimples + totalMarca
+  const totalProdutos = Object.values(produtosSelecionados).reduce((sum, p) => sum + p, 0)
+  const totalExtras = totalSimples + totalMarca + totalProdutos
   const precoServico = preco
   const precoDelivery = entrega === 'delivery' ? taxaDelivery : 0
   const subtotal = precoServico + totalExtras + precoDelivery + valorExtra
@@ -239,6 +252,7 @@ function NovoEncordoamentoPage() {
     setEnderecoEntrega('')
     setServicosExtras(new Set())
     setSelecoesComMarca({})
+    setProdutosSelecionados({})
     setMenuAberto(null)
     setBusca('')
     setLastEnc(null)
@@ -252,7 +266,11 @@ function NovoEncordoamentoPage() {
       const categoria = SERVICOS_COM_MARCA.find(s => s.id === cat)
       return `${categoria?.nome}: ${opt.nome}`
     })
-    const extras = [...extrasSimples, ...extrasComMarca].join(', ')
+    const produtosNomes = Object.keys(produtosSelecionados).map(id => {
+      const p = produtos.find(pr => pr.id === id)
+      return p ? p.nome : ''
+    }).filter(Boolean)
+    const extras = [...extrasSimples, ...extrasComMarca, ...produtosNomes].join(', ')
     try {
       const cordaCrObj = cordas.find(c => c.id === cordaCross)
       const hibridaInfo = tipoEnc === 'hibrida' && cordaCrObj
@@ -569,6 +587,31 @@ function NovoEncordoamentoPage() {
                 </div>
               </div>
 
+              {/* SEÇÃO: Produtos do Catálogo */}
+              {produtos.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Produtos</p>
+                  <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto">
+                    {produtos.map(p => (
+                      <button key={p.id} onClick={() => toggleProduto(p.id, p.preco)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                          produtosSelecionados[p.id]
+                            ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {produtosSelecionados[p.id] && <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
+                          <span className="text-left">{p.nome}</span>
+                          <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{p.categoria}</span>
+                        </div>
+                        <span className="text-xs font-semibold ml-2 flex-shrink-0">{formatCurrency(p.preco)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* SEÇÃO: Entrega */}
               <div>
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Entrega</p>
@@ -661,6 +704,15 @@ function NovoEncordoamentoPage() {
                     <div key={catId} className="flex justify-between text-gray-600">
                       <span>{cat?.nome}: <span className="text-gray-500">{opt.nome}</span></span>
                       <span>+{formatCurrency(opt.preco)}</span>
+                    </div>
+                  )
+                })}
+                {Object.entries(produtosSelecionados).map(([id, preco]) => {
+                  const p = produtos.find(pr => pr.id === id)
+                  return (
+                    <div key={id} className="flex justify-between text-gray-600">
+                      <span className="truncate mr-2">{p?.nome}</span>
+                      <span className="flex-shrink-0">+{formatCurrency(preco)}</span>
                     </div>
                   )
                 })}
