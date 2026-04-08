@@ -183,7 +183,11 @@ function NovoEncordoamentoPage() {
     })
   }
 
-  const totalCordasExtras = Object.values(cordasExtras).reduce((sum, c) => sum + c.preco * c.qtd, 0)
+  // Cordas extras: excluir a corda principal se estiver selecionada para encordoar (já conta no precoServico)
+  const totalCordasExtras = Object.entries(cordasExtras).reduce((sum, [id, c]) => {
+    if (id === cordaSelecionada) return sum // já está no precoServico
+    return sum + c.preco * c.qtd
+  }, 0)
   const totalProdutos = Object.values(produtosSelecionados).reduce((sum, p) => sum + p.preco * p.qtd, 0)
   const totalExtras = totalProdutos + totalCordasExtras
   const precoServico = preco
@@ -676,19 +680,30 @@ function NovoEncordoamentoPage() {
             <div className="p-5 border-t border-gray-100 space-y-3">
               {/* Resumo de preço */}
               <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm">
-                <div className="flex justify-between text-gray-600">
-                  <span>Encordoamento {cordaSel ? `(${cordaSel.nome})` : ''}</span>
-                  <span>{formatCurrency(precoServico)}</span>
-                </div>
-                {Object.entries(cordasExtras).map(([id, { preco: p, qtd }]) => {
-                  const c = cordas.find(co => co.id === id)
-                  return (
-                    <div key={id} className="flex justify-between text-gray-600">
-                      <span className="truncate mr-2">{c?.nome} {qtd > 1 && <span className="text-xs text-gray-400">x{qtd}</span>}</span>
-                      <span className="flex-shrink-0">+{formatCurrency(p * qtd)}</span>
+                {/* Cordas: unifica encordoamento + extras */}
+                {(() => {
+                  const linhas: { nome: string; qtd: number; preco: number; encordoar: boolean }[] = []
+                  // Corda principal (encordoar)
+                  if (cordaSel) {
+                    const extraQtd = cordasExtras[cordaSelecionada]?.qtd || 0
+                    linhas.push({ nome: cordaSel.nome, qtd: 1 + extraQtd, preco: cordaSel.preco, encordoar: true })
+                  }
+                  // Cordas extras (não duplicar a principal)
+                  Object.entries(cordasExtras).forEach(([id, { preco: p, qtd }]) => {
+                    if (id === cordaSelecionada) return // já incluída acima
+                    const c = cordas.find(co => co.id === id)
+                    if (c) linhas.push({ nome: c.nome, qtd, preco: p, encordoar: false })
+                  })
+                  return linhas.map((l, i) => (
+                    <div key={i} className="flex justify-between text-gray-600">
+                      <span className="truncate mr-2">
+                        {l.nome} {l.qtd > 1 && <span className="text-xs text-gray-400">x{l.qtd}</span>}
+                        {l.encordoar && <span className="text-xs text-emerald-500 ml-1">(encordoar)</span>}
+                      </span>
+                      <span className="flex-shrink-0">{formatCurrency(l.preco * l.qtd)}</span>
                     </div>
-                  )
-                })}
+                  ))
+                })()}
                 {SERVICOS_INCLUSOS.filter(s => servicosInclusos.has(s.id)).map(s => (
                   <div key={s.id} className="flex justify-between text-gray-500 text-xs">
                     <span>{s.nome}</span>
