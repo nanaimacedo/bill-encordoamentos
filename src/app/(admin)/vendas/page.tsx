@@ -102,16 +102,35 @@ export default function VendasPage() {
     URL.revokeObjectURL(url)
   }
 
-  const marcarPago = async (pagamentoId: string, forma: string) => {
+  const marcarPago = async (pagamentoId: string, forma: string, clienteNome: string) => {
+    // Atualização otimista — muda no local instantaneamente, sem reload
+    setVendas(prev => prev.map(v =>
+      v.pagamento?.id === pagamentoId
+        ? { ...v, pagamento: { ...v.pagamento, status: 'pago', formaPagamento: forma } }
+        : v
+    ))
+    setResumo(prev => {
+      const venda = vendas.find(v => v.pagamento?.id === pagamentoId)
+      const valor = venda?.preco || 0
+      return {
+        ...prev,
+        totalPago: prev.totalPago + valor,
+        totalPendente: prev.totalPendente - valor,
+      }
+    })
+
     try {
       const res = await fetch(`/api/pagamentos/${pagamentoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'pago', formaPagamento: forma }),
       })
-      if (!res.ok) throw new Error('Falha ao atualizar')
-      toast({ title: 'Pagamento confirmado!', type: 'success' })
-      carregar()
+      if (!res.ok) {
+        // Reverte se falhar
+        carregar()
+        throw new Error('Falha')
+      }
+      toast({ title: `${clienteNome} — ${forma.toUpperCase()}`, type: 'success' })
     } catch {
       toast({ title: 'Erro ao confirmar pagamento', type: 'error' })
     }
@@ -251,7 +270,11 @@ export default function VendasPage() {
             {idx === pendentes.length && pendentes.length > 0 && pagos.length > 0 && (
               <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wider pt-3">Pagos</p>
             )}
-            <div key={v.id} className="bg-white rounded-xl p-4 border border-gray-100 hover:border-emerald-200 transition-colors">
+            <div key={v.id} className={`rounded-xl p-4 border transition-all duration-300 ${
+              v.pagamento?.status === 'pago'
+                ? 'bg-green-50/50 border-green-200 opacity-70'
+                : 'bg-white border-gray-100 hover:border-emerald-200'
+            }`}>
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -302,15 +325,15 @@ export default function VendasPage() {
                 {/* Botões de pagamento — só para vendas pendentes */}
                 {v.pagamento && v.pagamento.status === 'pendente' && (
                   <div className="flex gap-2">
-                    <button onClick={() => marcarPago(v.pagamento!.id, 'pix')}
+                    <button onClick={() => marcarPago(v.pagamento!.id, 'pix', v.cliente.nome)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
                       <Smartphone className="w-3.5 h-3.5" /> PIX
                     </button>
-                    <button onClick={() => marcarPago(v.pagamento!.id, 'dinheiro')}
+                    <button onClick={() => marcarPago(v.pagamento!.id, 'dinheiro', v.cliente.nome)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
                       <Banknote className="w-3.5 h-3.5" /> Dinheiro
                     </button>
-                    <button onClick={() => marcarPago(v.pagamento!.id, 'cartao')}
+                    <button onClick={() => marcarPago(v.pagamento!.id, 'cartao', v.cliente.nome)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
                       <CreditCard className="w-3.5 h-3.5" /> Cartão
                     </button>
