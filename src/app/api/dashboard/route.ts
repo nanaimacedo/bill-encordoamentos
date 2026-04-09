@@ -34,36 +34,33 @@ export async function GET() {
     // Total de clientes
     const totalClientes = await prisma.cliente.count()
 
-    // Faturamento - pagamentos pagos por periodo
-    const [fatHoje, fatSemana, fatMes, fatAno, fatConsolidado] = await Promise.all([
-      prisma.pagamento.aggregate({
-        where: { status: 'pago', dataPagamento: { gte: startOfToday } },
-        _sum: { valor: true },
-      }),
-      prisma.pagamento.aggregate({
-        where: { status: 'pago', dataPagamento: { gte: startOfWeek } },
-        _sum: { valor: true },
-      }),
-      prisma.pagamento.aggregate({
-        where: { status: 'pago', dataPagamento: { gte: startOfMonth } },
-        _sum: { valor: true },
-      }),
-      prisma.pagamento.aggregate({
-        where: { status: 'pago', dataPagamento: { gte: startOfYear } },
-        _sum: { valor: true },
-      }),
-      prisma.pagamento.aggregate({
-        where: { status: 'pago' },
-        _sum: { valor: true },
-      }),
+    // Faturamento — regime de competência: reconhece a receita na DATA DA VENDA
+    // (encordoamento.createdAt / pedido.createdAt), não na data do pagamento.
+    // Inclui vendas pendentes, exclui canceladas. Assim, confirmar o recebimento
+    // de uma venda antiga não "move" aquele valor para o faturamento de hoje.
+    const naoCancelado = { status: { not: 'cancelado' } }
+    const [
+      fatEncHoje, fatEncSemana, fatEncMes, fatEncAno, fatEncTotal,
+      fatPedHoje, fatPedSemana, fatPedMes, fatPedAno, fatPedTotal,
+    ] = await Promise.all([
+      prisma.encordoamento.aggregate({ where: { createdAt: { gte: startOfToday }, ...naoCancelado }, _sum: { preco: true } }),
+      prisma.encordoamento.aggregate({ where: { createdAt: { gte: startOfWeek }, ...naoCancelado }, _sum: { preco: true } }),
+      prisma.encordoamento.aggregate({ where: { createdAt: { gte: startOfMonth }, ...naoCancelado }, _sum: { preco: true } }),
+      prisma.encordoamento.aggregate({ where: { createdAt: { gte: startOfYear }, ...naoCancelado }, _sum: { preco: true } }),
+      prisma.encordoamento.aggregate({ where: naoCancelado, _sum: { preco: true } }),
+      prisma.pedido.aggregate({ where: { createdAt: { gte: startOfToday }, ...naoCancelado }, _sum: { total: true } }),
+      prisma.pedido.aggregate({ where: { createdAt: { gte: startOfWeek }, ...naoCancelado }, _sum: { total: true } }),
+      prisma.pedido.aggregate({ where: { createdAt: { gte: startOfMonth }, ...naoCancelado }, _sum: { total: true } }),
+      prisma.pedido.aggregate({ where: { createdAt: { gte: startOfYear }, ...naoCancelado }, _sum: { total: true } }),
+      prisma.pedido.aggregate({ where: naoCancelado, _sum: { total: true } }),
     ])
 
     const faturamento = {
-      hoje: Number(fatHoje._sum.valor || 0),
-      semana: Number(fatSemana._sum.valor || 0),
-      mes: Number(fatMes._sum.valor || 0),
-      ano: Number(fatAno._sum.valor || 0),
-      consolidado: Number(fatConsolidado._sum.valor || 0),
+      hoje: Number(fatEncHoje._sum.preco || 0) + Number(fatPedHoje._sum.total || 0),
+      semana: Number(fatEncSemana._sum.preco || 0) + Number(fatPedSemana._sum.total || 0),
+      mes: Number(fatEncMes._sum.preco || 0) + Number(fatPedMes._sum.total || 0),
+      ano: Number(fatEncAno._sum.preco || 0) + Number(fatPedAno._sum.total || 0),
+      consolidado: Number(fatEncTotal._sum.preco || 0) + Number(fatPedTotal._sum.total || 0),
     }
 
     // Ticket medio
@@ -143,23 +140,20 @@ export async function GET() {
     const totalDelivery = totalGeral - totalLoja
     const totalRetirada = totalLoja
 
-    // Faturamento por centro de receita
+    // Faturamento por centro de receita — também em regime de competência
     // Loja = cooper (loja física). Todo o resto = delivery (leal, vitallis, cpb, lorian, etc.)
-    const [fatCooper, fatTotalPago] = await Promise.all([
-      prisma.pagamento.aggregate({
-        where: {
-          status: 'pago',
-          encordoamento: { centroReceita: { in: ['cooper', 'loja'] } },
-        },
-        _sum: { valor: true },
+    const [fatLojaEnc, fatLojaPed] = await Promise.all([
+      prisma.encordoamento.aggregate({
+        where: { centroReceita: { in: ['cooper', 'loja'] }, ...naoCancelado },
+        _sum: { preco: true },
       }),
-      prisma.pagamento.aggregate({
-        where: { status: 'pago' },
-        _sum: { valor: true },
+      prisma.pedido.aggregate({
+        where: { centroReceita: { in: ['cooper', 'loja'] }, ...naoCancelado },
+        _sum: { total: true },
       }),
     ])
-    const fatLojaVal = Number(fatCooper._sum.valor || 0)
-    const fatTotalVal = Number(fatTotalPago._sum.valor || 0)
+    const fatLojaVal = Number(fatLojaEnc._sum.preco || 0) + Number(fatLojaPed._sum.total || 0)
+    const fatTotalVal = faturamento.consolidado
     const fatDeliveryVal = fatTotalVal - fatLojaVal
 
     // Top clientes (ranking por faturamento)
