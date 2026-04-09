@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { AlertTriangle, MessageCircle, Phone, Clock, DollarSign, Eye, EyeOff, TrendingDown, X, Copy, Send, Bell, BellOff, History, FileText } from 'lucide-react'
+import { AlertTriangle, MessageCircle, Phone, Clock, DollarSign, Eye, EyeOff, TrendingDown, X, Copy, Send, Bell, BellOff, History, FileText, Search } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { registerAdminPushSubscription, unregisterAdminPushSubscription, getAdminPushStatus } from '@/lib/push'
@@ -38,6 +38,7 @@ export default function DevedoresPage() {
   const [loading, setLoading] = useState(true)
   const [mostrarValores, setMostrarValores] = useState(false)
   const [filtro, setFiltro] = useState<'todos' | 'antigos' | 'altos'>('todos')
+  const [busca, setBusca] = useState('')
   const [cobrando, setCobrando] = useState<Devedor | null>(null)
   const [msgCustom, setMsgCustom] = useState('')
   const [template, setTemplate] = useState(0)
@@ -173,8 +174,10 @@ export default function DevedoresPage() {
     toast({ title: 'Mensagem copiada!', type: 'success' })
   }
 
-  // Filtros
+  // Filtros + busca por nome
+  const buscaNormalizada = busca.trim().toLowerCase()
   const devedoresFiltrados = devedores.filter(d => {
+    if (buscaNormalizada && !d.cliente.nome.toLowerCase().includes(buscaNormalizada)) return false
     if (filtro === 'antigos') return d.diasAtraso >= 30
     if (filtro === 'altos') return d.totalDevido >= 200
     return true
@@ -233,6 +236,27 @@ export default function DevedoresPage() {
           <p className="text-xs text-orange-600 uppercase font-semibold">+30 dias</p>
           <p className="text-xl font-bold text-orange-700">{resumo.dividasMaisAntigas}</p>
         </div>
+      </div>
+
+      {/* Busca por nome */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar devedor por nome..."
+          className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-gray-200 text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+        />
+        {busca && (
+          <button
+            onClick={() => setBusca('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100"
+            aria-label="Limpar busca"
+          >
+            <X className="w-3.5 h-3.5 text-gray-400" />
+          </button>
+        )}
       </div>
 
       {/* Filtros */}

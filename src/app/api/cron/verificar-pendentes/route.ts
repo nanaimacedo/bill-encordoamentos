@@ -26,19 +26,32 @@ export async function POST(request: Request) {
 async function executar(_request: Request) {
   try {
     const agora = new Date()
-    // Vendas pendentes criadas há mais de 24h
     const umDiaAtras = new Date(agora.getTime() - 24 * 60 * 60 * 1000)
 
+    // Só avisa se passou mais de 1 dia desde a última tentativa de cobrança
+    const ultimaTentativa = await prisma.tentativaCobranca.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    })
+
+    if (ultimaTentativa && ultimaTentativa.createdAt > umDiaAtras) {
+      const horas = Math.floor(
+        (agora.getTime() - ultimaTentativa.createdAt.getTime()) / (1000 * 60 * 60)
+      )
+      return Response.json({
+        mensagem: `Última cobrança foi há ${horas}h — menos de 1 dia, sem notificação`,
+        enviados: 0,
+      })
+    }
+
+    // Lista todos os pendentes (sem filtro de data — se tem devedor, tem que cobrar)
     const pagamentosPendentes = await prisma.pagamento.findMany({
-      where: {
-        status: 'pendente',
-        createdAt: { lt: umDiaAtras },
-      },
+      where: { status: 'pendente' },
       include: { cliente: true },
     })
 
     if (pagamentosPendentes.length === 0) {
-      return Response.json({ mensagem: 'Nenhum pendente há mais de 1 dia', enviados: 0 })
+      return Response.json({ mensagem: 'Nenhum pagamento pendente', enviados: 0 })
     }
 
     // Agrupa por cliente

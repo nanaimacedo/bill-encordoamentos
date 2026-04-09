@@ -6,8 +6,8 @@ self.addEventListener('push', function(event) {
   const title = data.title || 'Bill Encordoamentos'
   const options = {
     body: data.body || '',
-    icon: '/icon-192.png',
-    badge: '/icon-72.png',
+    icon: '/logo.jpeg',
+    badge: '/logo.jpeg',
     data: { url: data.url || '/' },
     vibrate: [300, 150, 300, 150, 300],
     tag: data.tag || 'bill-notif',
