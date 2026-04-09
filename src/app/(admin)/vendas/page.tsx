@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone, MessageCircle, X, Copy, Send, Trash2, MapPin, Eye, EyeOff } from 'lucide-react'
+import { Search, Download, Calendar, Package, Clock, CheckCircle, XCircle, RotateCcw, Filter, Check, CreditCard, Banknote, Smartphone, MessageCircle, X, Copy, Send, Trash2, MapPin, Eye, EyeOff, Pencil } from 'lucide-react'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import Link from 'next/link'
@@ -60,6 +60,8 @@ export default function VendasPage() {
   const [mostrarValores, setMostrarValores] = useState(false)
   // Snapshot dos IDs pendentes no momento do carregamento (pra manter a ordem fixa enquanto o usuário marca)
   const [idsPendentesSnap, setIdsPendentesSnap] = useState<Set<string>>(new Set())
+  const [editandoVenda, setEditandoVenda] = useState<Venda | null>(null)
+  const [formEdit, setFormEdit] = useState({ preco: 0, entrega: 'retirada', centroReceita: 'loja', observacoes: '' })
   const { toast } = useToast()
 
   const v$ = (valor: number) => mostrarValores ? formatCurrency(valor) : '•••••'
@@ -166,6 +168,61 @@ export default function VendasPage() {
       if (!res.ok) { carregar(); throw new Error('Falha') }
       toast({ title: `Centro → ${novoCentro.toUpperCase()}`, type: 'success' })
     } catch { toast({ title: 'Erro ao alterar centro', type: 'error' }) }
+  }
+
+  const abrirEdicao = (v: Venda) => {
+    setEditandoVenda(v)
+    setFormEdit({
+      preco: v.preco,
+      entrega: v.entrega,
+      centroReceita: v.centroReceita,
+      observacoes: v.observacoes || '',
+    })
+  }
+
+  const salvarEdicao = async () => {
+    if (!editandoVenda) return
+    const novoValor = Number(formEdit.preco)
+    if (isNaN(novoValor) || novoValor < 0) {
+      toast({ title: 'Valor inválido', type: 'error' })
+      return
+    }
+    // Atualização otimista
+    setVendas(prev => prev.map(v => v.id === editandoVenda.id
+      ? { ...v, preco: novoValor, entrega: formEdit.entrega, centroReceita: formEdit.centroReceita, observacoes: formEdit.observacoes }
+      : v
+    ))
+    // Atualizar também o resumo se o valor mudou
+    const diff = novoValor - editandoVenda.preco
+    if (diff !== 0) {
+      setResumo(prev => ({
+        ...prev,
+        total: prev.total + diff,
+        totalPendente: editandoVenda.pagamento?.status === 'pendente' ? prev.totalPendente + diff : prev.totalPendente,
+        totalPago: editandoVenda.pagamento?.status === 'pago' ? prev.totalPago + diff : prev.totalPago,
+      }))
+    }
+    setEditandoVenda(null)
+    try {
+      const res = await fetch(`/api/encordoamentos/${editandoVenda.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preco: novoValor,
+          entrega: formEdit.entrega,
+          centroReceita: formEdit.centroReceita,
+          observacoes: formEdit.observacoes,
+        }),
+      })
+      if (!res.ok) { carregar(); throw new Error('Falha') }
+      // Se o valor mudou, atualizar também o pagamento
+      if (diff !== 0 && editandoVenda.pagamento?.id) {
+        await fetch(`/api/pagamentos/${editandoVenda.pagamento.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ valor: novoValor }),
+        })
+      }
+      toast({ title: 'Venda atualizada!', type: 'success' })
+    } catch { toast({ title: 'Erro ao salvar', type: 'error' }) }
   }
 
   const excluirVenda = async (vendaId: string, clienteNome: string) => {
@@ -492,7 +549,11 @@ export default function VendasPage() {
                     <XCircle className="w-3.5 h-3.5" /> Desfazer pagamento
                   </button>
                 )}
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={() => abrirEdicao(v)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
+                    <Pencil className="w-3 h-3" /> Editar
+                  </button>
                   <Link href={`/encordoamento?clienteId=${v.cliente.id}`}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors">
                     <RotateCcw className="w-3 h-3" /> Nova venda
@@ -508,6 +569,84 @@ export default function VendasPage() {
           ))}
         </div>
         )})()}
+
+      {/* Modal Editar Venda */}
+      {editandoVenda && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Editar Venda</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{editandoVenda.cliente.nome}</p>
+              </div>
+              <button onClick={() => setEditandoVenda(null)} className="p-2 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3 overflow-y-auto">
+              {/* Valor */}
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Valor</label>
+                <input type="number" step="0.01" value={formEdit.preco}
+                  onChange={e => setFormEdit(p => ({ ...p, preco: Number(e.target.value) }))}
+                  className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              {/* Entrega */}
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Entrega</label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <button onClick={() => setFormEdit(p => ({ ...p, entrega: 'retirada' }))}
+                    className={`py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                      formEdit.entrega === 'retirada' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'
+                    }`}>
+                    <Package className="w-4 h-4 inline mr-1" /> Retirada
+                  </button>
+                  <button onClick={() => setFormEdit(p => ({ ...p, entrega: 'delivery' }))}
+                    className={`py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                      formEdit.entrega === 'delivery' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600'
+                    }`}>
+                    Delivery
+                  </button>
+                </div>
+              </div>
+              {/* Centro de Receita */}
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Centro de Receita</label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {['cooper', 'loja', 'leal', 'vitallis', 'cpb', 'lorian', 'tenis ranch', 'delivery', 'torneio'].map(c => (
+                    <button key={c} onClick={() => setFormEdit(p => ({ ...p, centroReceita: c }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        formEdit.centroReceita === c ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}>
+                      {c.charAt(0).toUpperCase() + c.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Observações */}
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Observações / Produtos</label>
+                <textarea value={formEdit.observacoes}
+                  onChange={e => setFormEdit(p => ({ ...p, observacoes: e.target.value }))}
+                  placeholder="Ex: Produto: RPM Blast | 2 raquetes | Extras: Grip Yonex"
+                  rows={4}
+                  className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                <p className="text-[10px] text-gray-400 mt-1">Formato: &quot;Produto: Nome | X raquetes | Extras: Item1, Item2&quot;</p>
+              </div>
+            </div>
+            <div className="flex gap-3 p-4 border-t border-gray-100 flex-shrink-0">
+              <button onClick={() => setEditandoVenda(null)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 font-medium hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button onClick={salvarEdicao}
+                className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700">
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Cobrança WhatsApp */}
       {cobranca && (
