@@ -25,12 +25,12 @@ interface Corda {
 }
 
 interface LastEncordoamento {
-  cordaId: string
+  cordaId: string | null
   tensao: number
   tensaoCross: number | null
   tipo: string
   preco: number
-  corda: { nome: string; marca: string }
+  corda: { nome: string; marca: string } | null
 }
 
 const TENSOES_MAIN = [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
@@ -119,7 +119,7 @@ function NovoEncordoamentoPage() {
   useEffect(() => {
     if (!clienteSelecionado) { setLastEnc(null); return }
     fetch(`/api/encordoamentos/repetir/${clienteSelecionado.id}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(data => { if (data?.id) setLastEnc(data); else setLastEnc(null) })
       .catch(() => setLastEnc(null))
     if (clienteSelecionado.condominio) {
@@ -199,7 +199,7 @@ function NovoEncordoamentoPage() {
 
   const repetirUltimo = () => {
     if (!lastEnc) return
-    setCordaSelecionada(lastEnc.cordaId)
+    if (lastEnc.cordaId) setCordaSelecionada(lastEnc.cordaId)
     setTensao(lastEnc.tensao)
     setPreco(lastEnc.preco)
     if (lastEnc.tipo === 'hibrida') {
@@ -208,7 +208,7 @@ function NovoEncordoamentoPage() {
     } else {
       setTipoEnc('padrao')
     }
-    toast({ title: `Repetindo: ${lastEnc.corda.nome} ${lastEnc.tensao}lbs`, type: 'success' })
+    toast({ title: `Repetindo: ${lastEnc.corda?.nome || 'serviço'} ${lastEnc.tensao}lbs`, type: 'success' })
   }
 
   const selecionarCliente = (c: Cliente) => {
@@ -393,7 +393,7 @@ function NovoEncordoamentoPage() {
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-50 text-blue-700 font-medium text-sm hover:bg-blue-100 transition-colors border border-blue-200"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  Repetir: {lastEnc.corda.nome} · {lastEnc.tensao}lbs · {formatCurrency(lastEnc.preco)}
+                  Repetir: {lastEnc.corda?.nome || 'Último serviço'} · {lastEnc.tensao}lbs · {formatCurrency(lastEnc.preco)}
                 </button>
               )}
 
