@@ -60,9 +60,9 @@ async function executar(_request: Request) {
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 3)
 
-    const titulo = `💰 ${qtdVendas} venda${qtdVendas !== 1 ? 's' : ''} pendente${qtdVendas !== 1 ? 's' : ''}`
+    const titulo = `Bill, Verificar pendências 💰`
     const corpo =
-      `Total: ${formatBRL(totalGeral)} de ${qtdClientes} cliente${qtdClientes !== 1 ? 's' : ''}\n` +
+      `${qtdVendas} venda${qtdVendas !== 1 ? 's' : ''} a receber · ${formatBRL(totalGeral)}\n` +
       top.map(([, c]) => `• ${c.nome}: ${formatBRL(c.total)}`).join('\n')
 
     // Buscar todos os dispositivos admin inscritos
