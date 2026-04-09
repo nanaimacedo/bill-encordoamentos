@@ -185,6 +185,25 @@ model PushSubscription {
   cliente Cliente @relation(fields: [clienteId], references: [id])
 }
 
+model AdminPushSubscription {
+  id         String  @id @default(cuid())
+  endpoint   String  @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+}
+
+model TentativaCobranca {
+  id              String   @id @default(cuid())
+  clienteId       String
+  pagamentoId     String?
+  canal           String   // whatsapp, telefone, pessoal, sms
+  mensagem        String   @default("")
+  observacao      String   @default("")
+  resultado       String   @default("enviado") // enviado, visualizado, respondeu, prometeu_pagar, sem_resposta
+  createdAt       DateTime @default(now())
+}
+
 // ===== FASE 5: MARKETPLACE =====
 
 model ItemCarrinho {

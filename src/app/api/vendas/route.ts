@@ -79,16 +79,21 @@ export async function GET(request: Request) {
       .filter(e => e.pagamento?.status === 'pendente')
       .reduce((sum, e) => sum + e.preco, 0)
 
-    // Contagem de raquetes (parse do observacoes)
+    // Contagem de raquetes encordoadas (só conta se teve encordoamento real)
     let totalRaquetes = 0
     encordoamentos.forEach(e => {
       const obs = e.observacoes || ''
-      if (obs.includes('Venda avulsa')) return // produto avulso, sem raquete
+      // 1. Venda avulsa (só produto/acessório) — NÃO conta
+      if (obs.includes('Venda avulsa')) return
+      // 2. Observação explícita "X raquetes" (importação)
       const match = obs.match(/(\d+)\s*raquete/)
       if (match) {
         totalRaquetes += parseInt(match[1])
-      } else {
-        // Se não é avulsa e não tem "X raquetes", conta 1
+        return
+      }
+      // 3. Venda nova: só conta se tiver cordaId (encordoamento real)
+      //    Vendas sem cordaId e sem "raquetes" nas obs = acessório, não conta
+      if (e.cordaId) {
         totalRaquetes += 1
       }
     })

@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { AlertTriangle, MessageCircle, Phone, Clock, DollarSign, Eye, EyeOff, TrendingDown, X, Copy, Send } from 'lucide-react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { AlertTriangle, MessageCircle, Phone, Clock, DollarSign, Eye, EyeOff, TrendingDown, X, Copy, Send, Bell, BellOff, History, FileText } from 'lucide-react'
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { registerAdminPushSubscription, unregisterAdminPushSubscription, getAdminPushStatus } from '@/lib/push'
 
 interface ItemDivida {
   id: string
@@ -40,6 +41,10 @@ export default function DevedoresPage() {
   const [cobrando, setCobrando] = useState<Devedor | null>(null)
   const [msgCustom, setMsgCustom] = useState('')
   const [template, setTemplate] = useState(0)
+  const [pushAtivo, setPushAtivo] = useState(false)
+  const [registrandoTentativa, setRegistrandoTentativa] = useState<Devedor | null>(null)
+  const [formTentativa, setFormTentativa] = useState({ canal: 'whatsapp', resultado: 'enviado', observacao: '' })
+  const [historicoCliente, setHistoricoCliente] = useState<any[] | null>(null)
   const { toast } = useToast()
 
   const v$ = (valor: number) => mostrarValores ? formatCurrency(valor) : '•••••'
@@ -59,6 +64,64 @@ export default function DevedoresPage() {
   }, [toast])
 
   useEffect(() => { carregar() }, [carregar])
+
+  // Verificar status das notificações push
+  useEffect(() => {
+    getAdminPushStatus().then(s => setPushAtivo(s.ativo))
+  }, [])
+
+  const togglePush = async () => {
+    if (pushAtivo) {
+      const r = await unregisterAdminPushSubscription()
+      if (r.success) {
+        setPushAtivo(false)
+        toast({ title: 'Notificações desativadas', type: 'success' })
+      }
+    } else {
+      const r = await registerAdminPushSubscription()
+      if (r.success) {
+        setPushAtivo(true)
+        toast({ title: 'Notificações ativadas! Você receberá avisos de pendentes.', type: 'success' })
+      } else {
+        toast({ title: r.error || 'Erro ao ativar', type: 'error' })
+      }
+    }
+  }
+
+  const abrirRegistroTentativa = (d: Devedor) => {
+    setRegistrandoTentativa(d)
+    setFormTentativa({ canal: 'whatsapp', resultado: 'enviado', observacao: '' })
+  }
+
+  const salvarTentativa = async () => {
+    if (!registrandoTentativa) return
+    try {
+      await fetch('/api/tentativas-cobranca', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clienteId: registrandoTentativa.cliente.id,
+          canal: formTentativa.canal,
+          resultado: formTentativa.resultado,
+          observacao: formTentativa.observacao,
+        }),
+      })
+      toast({ title: 'Cobrança registrada!', type: 'success' })
+      setRegistrandoTentativa(null)
+    } catch {
+      toast({ title: 'Erro ao registrar', type: 'error' })
+    }
+  }
+
+  const verHistorico = async (clienteId: string) => {
+    try {
+      const res = await fetch(`/api/tentativas-cobranca?clienteId=${clienteId}`)
+      const data = await res.json()
+      setHistoricoCliente(data)
+    } catch {
+      toast({ title: 'Erro ao carregar histórico', type: 'error' })
+    }
+  }
 
   const getSaudacao = () => {
     const h = new Date().getHours()
@@ -127,11 +190,34 @@ export default function DevedoresPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">Maiores valores em aberto</p>
         </div>
-        <button onClick={() => setMostrarValores(v => !v)}
-          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-          {mostrarValores ? <Eye className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={togglePush}
+            className={`p-2 rounded-lg transition-colors ${pushAtivo ? 'bg-emerald-100 hover:bg-emerald-200' : 'bg-gray-100 hover:bg-gray-200'}`}
+            title={pushAtivo ? 'Notificações ativadas' : 'Ativar notificações'}>
+            {pushAtivo ? <Bell className="w-4 h-4 text-emerald-600" /> : <BellOff className="w-4 h-4 text-gray-400" />}
+          </button>
+          <button onClick={() => setMostrarValores(v => !v)}
+            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
+            {mostrarValores ? <Eye className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
+          </button>
+        </div>
       </div>
+
+      {/* Banner de Push Notifications */}
+      {!pushAtivo && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Bell className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <p className="text-xs text-emerald-800">
+              <strong>Ative notificações</strong> para receber avisos diários de pendentes no seu celular (mesmo com a tela bloqueada)
+            </p>
+          </div>
+          <button onClick={togglePush}
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 flex-shrink-0">
+            Ativar
+          </button>
+        </div>
+      )}
 
       {/* Resumo */}
       <div className="grid grid-cols-3 gap-3">
@@ -230,11 +316,23 @@ export default function DevedoresPage() {
                 )}
               </div>
 
-              {/* Ação */}
-              <button onClick={() => abrirCobranca(d)}
-                className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors">
-                <MessageCircle className="w-3.5 h-3.5" /> Cobrar via WhatsApp
-              </button>
+              {/* Ações */}
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => abrirCobranca(d)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors">
+                  <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                </button>
+                <button onClick={() => abrirRegistroTentativa(d)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+                  title="Registrar cobrança">
+                  <FileText className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => verHistorico(d.cliente.id)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gray-50 text-gray-700 text-xs font-medium hover:bg-gray-100 transition-colors"
+                  title="Histórico de cobranças">
+                  <History className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -276,6 +374,99 @@ export default function DevedoresPage() {
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition-colors">
                 <Send className="w-4 h-4" /> Enviar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registrar Tentativa de Cobrança */}
+      {registrandoTentativa && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl animate-slideUp">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Registrar Cobrança</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{registrandoTentativa.cliente.nome}</p>
+              </div>
+              <button onClick={() => setRegistrandoTentativa(null)} className="p-2 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Canal</label>
+                <div className="grid grid-cols-4 gap-1.5 mt-1">
+                  {['whatsapp', 'telefone', 'pessoal', 'sms'].map(c => (
+                    <button key={c} onClick={() => setFormTentativa(p => ({ ...p, canal: c }))}
+                      className={`py-2 rounded-lg text-xs font-medium transition-all ${
+                        formTentativa.canal === c ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'
+                      }`}>{c.charAt(0).toUpperCase() + c.slice(1)}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Resultado</label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {[
+                    { v: 'enviado', l: 'Enviado' },
+                    { v: 'visualizado', l: 'Visualizado' },
+                    { v: 'respondeu', l: 'Respondeu' },
+                    { v: 'prometeu_pagar', l: 'Prometeu pagar' },
+                    { v: 'sem_resposta', l: 'Sem resposta' },
+                  ].map(r => (
+                    <button key={r.v} onClick={() => setFormTentativa(p => ({ ...p, resultado: r.v }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        formTentativa.resultado === r.v ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'
+                      }`}>{r.l}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Observação</label>
+                <textarea value={formTentativa.observacao}
+                  onChange={e => setFormTentativa(p => ({ ...p, observacao: e.target.value }))}
+                  placeholder="Ex: Vai pagar na sexta, disse que esqueceu..."
+                  rows={3}
+                  className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-3 p-4 border-t border-gray-100">
+              <button onClick={() => setRegistrandoTentativa(null)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 font-medium">Cancelar</button>
+              <button onClick={salvarTentativa}
+                className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700">Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Histórico */}
+      {historicoCliente && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl animate-slideUp max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-shrink-0">
+              <h3 className="text-base font-bold text-gray-900">Histórico de Cobranças</h3>
+              <button onClick={() => setHistoricoCliente(null)} className="p-2 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              {historicoCliente.length === 0 ? (
+                <p className="text-center text-gray-400 py-8 text-sm">Nenhuma cobrança registrada ainda</p>
+              ) : (
+                <div className="space-y-2">
+                  {historicoCliente.map((t: any) => (
+                    <div key={t.id} className="bg-gray-50 rounded-lg p-3 text-xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-gray-800 uppercase">{t.canal}</span>
+                        <span className="text-gray-400">{formatDateTime(t.createdAt)}</span>
+                      </div>
+                      <p className="text-gray-600">Resultado: <span className="font-medium">{t.resultado.replace('_', ' ')}</span></p>
+                      {t.observacao && <p className="text-gray-500 mt-1 italic">&ldquo;{t.observacao}&rdquo;</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
