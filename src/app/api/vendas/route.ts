@@ -7,27 +7,30 @@ export async function GET(request: Request) {
     const busca = searchParams.get('busca') || ''
     const status = searchParams.get('status') || 'todos'
 
-    const now = new Date()
+    // Timezone Brasil (UTC-3)
+    const TZ_OFFSET_MS = 3 * 60 * 60 * 1000
+    const nowBR = new Date(Date.now() - TZ_OFFSET_MS)
     let dataInicio: Date
     let dataFim: Date | null = null
 
     // Suporta mês específico no formato YYYY-MM
     if (/^\d{4}-\d{2}$/.test(periodo)) {
       const [ano, mes] = periodo.split('-').map(Number)
-      dataInicio = new Date(ano, mes - 1, 1)
-      dataFim = new Date(ano, mes, 1) // primeiro dia do mês seguinte
+      dataInicio = new Date(Date.UTC(ano, mes - 1, 1) + TZ_OFFSET_MS)
+      dataFim = new Date(Date.UTC(ano, mes, 1) + TZ_OFFSET_MS)
     } else {
       switch (periodo) {
         case 'hoje':
-          dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+          dataInicio = new Date(Date.UTC(nowBR.getUTCFullYear(), nowBR.getUTCMonth(), nowBR.getUTCDate()) + TZ_OFFSET_MS)
           break
         case 'semana': {
-          const dia = now.getDay()
-          dataInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dia)
+          const dia = nowBR.getUTCDay()
+          const startToday = new Date(Date.UTC(nowBR.getUTCFullYear(), nowBR.getUTCMonth(), nowBR.getUTCDate()) + TZ_OFFSET_MS)
+          dataInicio = new Date(startToday.getTime() - dia * 24 * 60 * 60 * 1000)
           break
         }
         case 'mes':
-          dataInicio = new Date(now.getFullYear(), now.getMonth(), 1)
+          dataInicio = new Date(Date.UTC(nowBR.getUTCFullYear(), nowBR.getUTCMonth(), 1) + TZ_OFFSET_MS)
           break
         case 'todos':
           dataInicio = new Date(2000, 0, 1)

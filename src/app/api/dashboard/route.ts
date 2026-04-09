@@ -2,13 +2,17 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
+    // Timezone Brasil (UTC-3): calcular "hoje" no horário local do Brasil
+    const TZ_OFFSET_MS = 3 * 60 * 60 * 1000 // UTC-3
+    const nowBR = new Date(Date.now() - TZ_OFFSET_MS) // agora em "horário Brasil"
+    // Meia-noite Brasil = meia-noite BR convertida de volta para UTC (adiciona 3h)
+    const startOfTodayBR = new Date(Date.UTC(nowBR.getUTCFullYear(), nowBR.getUTCMonth(), nowBR.getUTCDate()))
+    const startOfToday = new Date(startOfTodayBR.getTime() + TZ_OFFSET_MS)
+    const dayOfWeek = nowBR.getUTCDay() // 0=Sun
+    const startOfWeek = new Date(startOfToday.getTime() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) * 24 * 60 * 60 * 1000)
+    const startOfMonth = new Date(Date.UTC(nowBR.getUTCFullYear(), nowBR.getUTCMonth(), 1) + TZ_OFFSET_MS)
+    const startOfYear = new Date(Date.UTC(nowBR.getUTCFullYear(), 0, 1) + TZ_OFFSET_MS)
     const now = new Date()
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const dayOfWeek = now.getDay() // 0=Sun
-    const startOfWeek = new Date(startOfToday)
-    startOfWeek.setDate(startOfToday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)) // Monday
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const startOfYear = new Date(now.getFullYear(), 0, 1)
     const trintaDiasAtras = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
     // Total encordoamentos (all time)

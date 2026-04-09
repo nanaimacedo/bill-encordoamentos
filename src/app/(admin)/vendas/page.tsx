@@ -58,6 +58,8 @@ export default function VendasPage() {
   const [msgCustom, setMsgCustom] = useState('')
   const [editandoCentro, setEditandoCentro] = useState<string | null>(null)
   const [mostrarValores, setMostrarValores] = useState(false)
+  // Snapshot dos IDs pendentes no momento do carregamento (pra manter a ordem fixa enquanto o usuário marca)
+  const [idsPendentesSnap, setIdsPendentesSnap] = useState<Set<string>>(new Set())
   const { toast } = useToast()
 
   const v$ = (valor: number) => mostrarValores ? formatCurrency(valor) : '•••••'
@@ -69,7 +71,10 @@ export default function VendasPage() {
       if (busca) params.set('busca', busca)
       const res = await fetch(`/api/vendas?${params}`)
       const data = await res.json()
-      setVendas(data.vendas || [])
+      const vendasApi: Venda[] = data.vendas || []
+      setVendas(vendasApi)
+      // Snapshot da ordem: pendentes primeiro, depois pagos
+      setIdsPendentesSnap(new Set(vendasApi.filter(v => v.pagamento?.status !== 'pago').map(v => v.id)))
       setResumo(data.resumo || { quantidade: 0, total: 0, totalPago: 0, totalPendente: 0, totalRaquetes: 0 })
     } catch {
       toast({ title: 'Erro ao carregar vendas', type: 'error' })
@@ -209,9 +214,34 @@ export default function VendasPage() {
     const pendentes = getVendasPendentesCliente(v.cliente.id)
     const detalhes = pendentes.map(p => {
       const obs = p.observacoes || ''
+      const linhas: string[] = []
+
+      // 1. Corda principal (encordoamento) — se tiver corda associada
+      if (p.corda) {
+        linhas.push(`Encordoar ${p.corda.nome}${p.tensao ? ` ${p.tensao}lbs` : ''}`)
+      }
+
+      // 2. Produto da planilha importada (vendas antigas)
       const prodMatch = obs.match(/Produto:\s*(.+?)(\s*\||$)/)
-      const produto = prodMatch ? prodMatch[1].trim() : p.corda?.nome || 'Serviço'
-      return `• ${produto}: ${formatCurrency(p.preco)}`
+      if (prodMatch && !p.corda) {
+        linhas.push(prodMatch[1].trim())
+      }
+
+      // 3. Extras de vendas novas (ex: "Extras: RPM Blast x2, Grip Yonex")
+      const extrasMatch = obs.match(/Extras?:\s*(.+?)(\s*\||$)/)
+      if (extrasMatch) {
+        linhas.push(extrasMatch[1].trim())
+      }
+
+      // 4. Info híbrida
+      const hibMatch = obs.match(/Híbrida:\s*(.+?)(\s*\||$)/)
+      if (hibMatch) {
+        linhas.push(hibMatch[1].trim())
+      }
+
+      // Fallback: se nada, usa "Serviço"
+      const descricao = linhas.length > 0 ? linhas.join(' + ') : 'Serviço'
+      return `• ${descricao}: ${formatCurrency(p.preco)}`
     }).join('\n')
     const totalPendente = pendentes.reduce((sum, p) => sum + p.preco, 0)
     const total = formatCurrency(totalPendente)
@@ -352,6 +382,12 @@ export default function VendasPage() {
       ) : (() => {
         const pendentesCount = vendas.filter(v => v.pagamento?.status !== 'pago').length
         const pagosCount = vendas.filter(v => v.pagamento?.status === 'pago').length
+        // Ordena usando snapshot: tudo que estava pendente no carregamento vai primeiro (mantém ordem enquanto marca)
+        const vendasOrdenadas = [
+          ...vendas.filter(v => idsPendentesSnap.has(v.id)),
+          ...vendas.filter(v => !idsPendentesSnap.has(v.id)),
+        ]
+        const ultimoPendenteIdx = vendasOrdenadas.findIndex(v => !idsPendentesSnap.has(v.id))
         return (
         <div className="space-y-2">
           {pendentesCount > 0 && pagosCount > 0 && (
@@ -360,9 +396,15 @@ export default function VendasPage() {
               <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded-full">{pagosCount} pago{pagosCount !== 1 ? 's' : ''}</span>
             </div>
           )}
-          {vendas.map((v) => (
-            <>
-            <div key={v.id} className={`rounded-xl p-4 border transition-all duration-300 ${
+          {vendasOrdenadas.map((v, idx) => (
+            <div key={v.id}>
+            {idx === 0 && idsPendentesSnap.size > 0 && (
+              <p className="text-[10px] text-amber-600 font-semibold uppercase tracking-wider pt-1 pb-2">Pendentes</p>
+            )}
+            {idx === ultimoPendenteIdx && ultimoPendenteIdx > 0 && (
+              <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wider pt-3 pb-2">Pagos</p>
+            )}
+            <div className={`rounded-xl p-4 border transition-all duration-300 ${
               v.pagamento?.status === 'pago' ? 'bg-green-50/50 border-green-200 opacity-70' : 'bg-white border-gray-100 hover:border-emerald-200'
             }`}>
               <div className="flex items-start justify-between">
@@ -462,7 +504,8 @@ export default function VendasPage() {
                 </div>
               </div>
             </div>
-          </>))}
+            </div>
+          ))}
         </div>
         )})()}
 
