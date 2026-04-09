@@ -185,9 +185,10 @@ function NovoEncordoamentoPage() {
     })
   }
 
-  // Cordas extras: a corda principal já conta 1 unidade no precoServico, então só soma as extras adicionais
+  // Cordas extras: para a corda principal, qtd = total de raquetes (inclui a base)
+  // Para outras cordas, qtd = avulsas adicionais
   const totalCordasExtras = Object.entries(cordasExtras).reduce((sum, [id, c]) => {
-    if (id === cordaSelecionada) return sum + c.preco * c.qtd // extras avulsas da mesma corda (base já no precoServico)
+    if (id === cordaSelecionada) return sum + c.preco * (c.qtd - 1) // base já no precoServico, só cobra extras
     return sum + c.preco * c.qtd
   }, 0)
   const totalProdutos = Object.values(produtosSelecionados).reduce((sum, p) => sum + p.preco * p.qtd, 0)
@@ -459,9 +460,9 @@ function NovoEncordoamentoPage() {
                                 'bg-white border-gray-200 hover:border-emerald-300 hover:shadow-sm'
                               }`}>
                               {/* Badge de quantidade */}
-                              {sel && (
+                              {sel && sel.qtd > 1 && (
                                 <span className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow">
-                                  {sel.qtd}
+                                  x{sel.qtd}
                                 </span>
                               )}
                               {/* Estoque baixo */}
@@ -472,7 +473,11 @@ function NovoEncordoamentoPage() {
                                 <span className="absolute top-1 left-1 text-[9px] bg-amber-500 text-white px-1 py-0.5 rounded font-bold">{c.estoque} un</span>
                               )}
                               {/* Toque para encordoar */}
-                              <button className="w-full" onClick={() => { setCordaSelecionada(c.id); setPreco(c.preco) }}>
+                              <button className="w-full" onClick={() => {
+                                setCordaSelecionada(c.id); setPreco(c.preco)
+                                // Inicializa com qtd=1 se ainda não tem extras
+                                if (!cordasExtras[c.id]) setCordasExtras(prev => ({ ...prev, [c.id]: { preco: c.preco, qtd: 1 } }))
+                              }}>
                                 <p className="text-xs font-bold text-gray-800 leading-tight truncate">{c.nome}</p>
                                 <p className="text-[10px] text-gray-400 truncate">{c.marca} · {c.tipo}</p>
                                 <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(c.preco)}</p>
@@ -761,10 +766,10 @@ function NovoEncordoamentoPage() {
                 {/* Cordas: unifica encordoamento + extras */}
                 {(() => {
                   const linhas: { nome: string; qtd: number; preco: number; encordoar: boolean }[] = []
-                  // Corda principal (encordoar)
+                  // Corda principal (encordoar) — qtd = total de raquetes
                   if (cordaSel) {
-                    const extraQtd = cordasExtras[cordaSelecionada]?.qtd || 0
-                    linhas.push({ nome: cordaSel.nome, qtd: 1 + extraQtd, preco: cordaSel.preco, encordoar: true })
+                    const totalQtd = cordasExtras[cordaSelecionada]?.qtd || 1
+                    linhas.push({ nome: cordaSel.nome, qtd: totalQtd, preco: cordaSel.preco, encordoar: true })
                   }
                   // Cordas extras (não duplicar a principal)
                   Object.entries(cordasExtras).forEach(([id, { preco: p, qtd }]) => {

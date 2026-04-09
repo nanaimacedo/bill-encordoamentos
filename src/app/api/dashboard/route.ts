@@ -137,15 +137,8 @@ export async function GET() {
       prisma.encordoamento.count({ where: { entrega: 'retirada' } }),
     ])
 
-    // Faturamento por centro de receita
-    const [fatLoja, fatDelivery] = await Promise.all([
-      prisma.pagamento.aggregate({
-        where: {
-          status: 'pago',
-          encordoamento: { centroReceita: 'loja' },
-        },
-        _sum: { valor: true },
-      }),
+    // Faturamento por centro de receita (delivery vs todos os outros = loja)
+    const [fatDelivery, fatTotal] = await Promise.all([
       prisma.pagamento.aggregate({
         where: {
           status: 'pago',
@@ -153,7 +146,14 @@ export async function GET() {
         },
         _sum: { valor: true },
       }),
+      prisma.pagamento.aggregate({
+        where: { status: 'pago' },
+        _sum: { valor: true },
+      }),
     ])
+    const fatDeliveryVal = Number(fatDelivery._sum.valor || 0)
+    const fatTotalVal = Number(fatTotal._sum.valor || 0)
+    const fatLojaVal = fatTotalVal - fatDeliveryVal
 
     // Top clientes (ranking por faturamento)
     const topClientesData = await prisma.pagamento.groupBy({
@@ -199,8 +199,8 @@ export async function GET() {
         totalRetirada,
       },
       centroReceita: {
-        loja: { faturamento: Number(fatLoja._sum.valor || 0), total: totalRetirada },
-        delivery: { faturamento: Number(fatDelivery._sum.valor || 0), total: totalDelivery },
+        loja: { faturamento: fatLojaVal, total: totalRetirada },
+        delivery: { faturamento: fatDeliveryVal, total: totalDelivery },
       },
     })
   } catch (error) {
