@@ -200,6 +200,14 @@ export default function DashboardPage() {
           <div className="mb-3"><div className="p-2 rounded-xl bg-blue-50 w-fit"><BarChart3 className="w-5 h-5 text-blue-600" /></div></div>
           <p className="text-gray-500 text-xs mb-1">Encordoamentos</p>
           <p className="text-2xl font-bold text-gray-900 font-heading">{mostrarValores ? data.totalEncordoamentos : '••'}</p>
+          {mostrarValores && (
+            <div className="mt-2 space-y-0.5 text-[10px] text-gray-400">
+              <div className="flex justify-between"><span>Dia</span><span className="font-semibold text-gray-600">{data.vendasHoje}</span></div>
+              <div className="flex justify-between"><span>Semana</span><span className="font-semibold text-gray-600">{data.vendasSemana}</span></div>
+              <div className="flex justify-between"><span>Mês</span><span className="font-semibold text-gray-600">{data.vendasMes}</span></div>
+              <div className="flex justify-between"><span>Total</span><span className="font-semibold text-gray-600">{data.totalEncordoamentos}</span></div>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
