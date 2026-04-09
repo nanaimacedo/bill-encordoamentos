@@ -17,6 +17,7 @@ model Cliente {
   dataNascimento DateTime?
   pontosFidelidade Int    @default(0)
   centroReceita  String   @default("loja") // loja, delivery
+  saldoContaCorrente Float @default(0) // saldo positivo = crédito a favor do cliente
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -30,6 +31,24 @@ model Cliente {
   perfil         PerfilJogador?
   avaliacoes     Avaliacao[]
   pushSubscriptions PushSubscription[]
+  movimentacoes  MovimentacaoConta[]
+}
+
+model MovimentacaoConta {
+  id              String   @id @default(cuid())
+  clienteId       String
+  tipo            String   // credito (entrada) ou debito (saida/abatimento)
+  valor           Float
+  descricao       String   @default("")
+  pagamentoId     String?  // se abateu um pagamento pendente
+  encordoamentoId String?  // se veio de um encordoamento
+  pedidoId        String?  // se veio de um pedido da loja
+  createdAt       DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+
+  @@index([clienteId])
+  @@index([createdAt])
 }
 
 model Raquete {

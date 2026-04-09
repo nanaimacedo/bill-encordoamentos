@@ -19,6 +19,7 @@ import {
   MapPin,
   ClipboardList,
   TrendingDown,
+  Wallet,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/encordoamento", label: "Nova Venda", icon: PlusCircle },
   { href: "/vendas", label: "Vendas", icon: ClipboardList },
   { href: "/devedores", label: "Devedores", icon: TrendingDown },
+  { href: "/conta-corrente", label: "Conta Corrente", icon: Wallet },
   { href: "/scanner", label: "Scanner QR", icon: QrCode },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/financeiro", label: "Financeiro", icon: DollarSign },
