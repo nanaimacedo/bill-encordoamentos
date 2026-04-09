@@ -131,18 +131,21 @@ export async function GET() {
       ([date, data]) => ({ date, count: data.count, receita: data.receita })
     )
 
-    // Delivery stats
-    const [totalDelivery, totalRetirada] = await Promise.all([
-      prisma.encordoamento.count({ where: { entrega: 'delivery' } }),
-      prisma.encordoamento.count({ where: { entrega: 'retirada' } }),
-    ])
+    // Loja (cooper) vs Delivery (tudo que não é cooper/loja)
+    const totalLoja = await prisma.encordoamento.count({
+      where: { centroReceita: { in: ['cooper', 'loja'] } },
+    })
+    const totalGeral = await prisma.encordoamento.count()
+    const totalDelivery = totalGeral - totalLoja
+    const totalRetirada = totalLoja
 
-    // Faturamento por centro de receita (delivery vs todos os outros = loja)
-    const [fatDelivery, fatTotal] = await Promise.all([
+    // Faturamento por centro de receita
+    // Loja = cooper (loja física). Todo o resto = delivery (leal, vitallis, cpb, lorian, etc.)
+    const [fatCooper, fatTotalPago] = await Promise.all([
       prisma.pagamento.aggregate({
         where: {
           status: 'pago',
-          encordoamento: { centroReceita: 'delivery' },
+          encordoamento: { centroReceita: { in: ['cooper', 'loja'] } },
         },
         _sum: { valor: true },
       }),
@@ -151,9 +154,9 @@ export async function GET() {
         _sum: { valor: true },
       }),
     ])
-    const fatDeliveryVal = Number(fatDelivery._sum.valor || 0)
-    const fatTotalVal = Number(fatTotal._sum.valor || 0)
-    const fatLojaVal = fatTotalVal - fatDeliveryVal
+    const fatLojaVal = Number(fatCooper._sum.valor || 0)
+    const fatTotalVal = Number(fatTotalPago._sum.valor || 0)
+    const fatDeliveryVal = fatTotalVal - fatLojaVal
 
     // Top clientes (ranking por faturamento)
     const topClientesData = await prisma.pagamento.groupBy({
