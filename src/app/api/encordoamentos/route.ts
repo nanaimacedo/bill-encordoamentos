@@ -55,16 +55,17 @@ export async function POST(request: Request) {
     // Auto-create pagamento
     const formaPag = body.formaPagamento || 'pendente'
     const pago = formaPag !== 'pendente'
-    await prisma.pagamento.create({
-      data: {
-        clienteId: encordoamento.clienteId,
-        encordoamentoId: encordoamento.id,
-        valor: encordoamento.preco,
-        status: pago ? 'pago' : 'pendente',
-        formaPagamento: pago ? formaPag : null,
-        ...(pago ? { dataPagamento: new Date() } : {}),
-      },
-    })
+    const pagamentoData: Record<string, unknown> = {
+      clienteId: encordoamento.clienteId,
+      encordoamentoId: encordoamento.id,
+      valor: encordoamento.preco,
+      status: pago ? 'pago' : 'pendente',
+    }
+    if (pago) {
+      pagamentoData.formaPagamento = formaPag
+      pagamentoData.dataPagamento = new Date()
+    }
+    await prisma.pagamento.create({ data: pagamentoData as any })
 
     return Response.json(encordoamento, { status: 201 })
   } catch (error) {
