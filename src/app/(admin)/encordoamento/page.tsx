@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
-import { Search, RotateCcw, Check, Plus, Truck, Package, X } from 'lucide-react'
+import { Search, RotateCcw, Check, Plus, Truck, Package, X, CreditCard, Banknote, Smartphone, Clock } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -76,6 +76,7 @@ function NovoEncordoamentoPage() {
   const [servicosInclusos, setServicosInclusos] = useState<Set<string>>(new Set())
   const [buscaProduto, setBuscaProduto] = useState('')
   const [catProduto, setCatProduto] = useState<string>('todos')
+  const [formaPagamento, setFormaPagamento] = useState<'pendente' | 'cartao' | 'pix' | 'dinheiro'>('pendente')
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [lastEnc, setLastEnc] = useState<LastEncordoamento | null>(null)
@@ -240,6 +241,7 @@ function NovoEncordoamentoPage() {
     setCatProduto('todos')
     setBusca('')
     setLastEnc(null)
+    setFormaPagamento('pendente')
   }
 
   const salvar = async () => {
@@ -276,6 +278,7 @@ function NovoEncordoamentoPage() {
           enderecoEntrega: entrega === 'delivery' ? enderecoEntrega : '',
           taxaDelivery: precoDelivery,
           centroReceita: entrega === 'delivery' ? 'delivery' : (clienteSelecionado as any).centroReceita || 'loja',
+          formaPagamento,
         }),
       })
       if (res.ok) {
@@ -367,10 +370,10 @@ function NovoEncordoamentoPage() {
 
       {/* ===== MODAL PRINCIPAL - Registro de Serviço ===== */}
       {showModal && clienteSelecionado && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-8 md:pt-16 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-slideUp mb-8">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-start justify-center z-50 sm:p-4 sm:pt-8 md:pt-16 sm:overflow-y-auto">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl animate-slideUp sm:mb-8 max-h-[95vh] sm:max-h-none flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 flex-shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 font-heading">Nova Venda</h2>
                 <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
@@ -387,7 +390,7 @@ function NovoEncordoamentoPage() {
               </button>
             </div>
 
-            <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+            <div className="p-4 sm:p-5 space-y-5 overflow-y-auto flex-1 overscroll-contain -webkit-overflow-scrolling-touch">
               {/* Repetir último */}
               {lastEnc && (
                 <button onClick={repetirUltimo}
@@ -749,6 +752,30 @@ function NovoEncordoamentoPage() {
                 </div>
               </div>
 
+              {/* SEÇÃO: Forma de Pagamento */}
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Pagamento</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { value: 'pendente', label: 'Pendente', icon: Clock, colors: 'border-amber-400 bg-amber-50 text-amber-700', inactive: 'border-gray-200 text-gray-600' },
+                    { value: 'pix', label: 'Pix', icon: Smartphone, colors: 'border-teal-500 bg-teal-50 text-teal-700', inactive: 'border-gray-200 text-gray-600' },
+                    { value: 'cartao', label: 'Cartão', icon: CreditCard, colors: 'border-blue-500 bg-blue-50 text-blue-700', inactive: 'border-gray-200 text-gray-600' },
+                    { value: 'dinheiro', label: 'Dinheiro', icon: Banknote, colors: 'border-green-500 bg-green-50 text-green-700', inactive: 'border-gray-200 text-gray-600' },
+                  ] as const).map(opt => {
+                    const Icon = opt.icon
+                    const selected = formaPagamento === opt.value
+                    return (
+                      <button key={opt.value} onClick={() => setFormaPagamento(opt.value)}
+                        className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                          selected ? opt.colors : opt.inactive + ' hover:border-gray-300'
+                        }`}>
+                        <Icon className="w-4 h-4" /> {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
               {/* SEÇÃO: Observações */}
               <div>
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Observações</p>
@@ -760,7 +787,7 @@ function NovoEncordoamentoPage() {
             </div>
 
             {/* Footer - Resumo + Salvar */}
-            <div className="p-5 border-t border-gray-100 space-y-3">
+            <div className="p-4 sm:p-5 border-t border-gray-100 space-y-3 flex-shrink-0">
               {/* Resumo de preço */}
               <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm">
                 {/* Cordas: unifica encordoamento + extras */}
@@ -843,8 +870,8 @@ function NovoEncordoamentoPage() {
 
       {/* Modal Sucesso - com resumo e ações */}
       {sucesso && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp">
             <div className="p-6 text-center">
               <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Check className="w-8 h-8 text-emerald-600" />
@@ -896,8 +923,8 @@ function NovoEncordoamentoPage() {
 
       {/* Modal Novo Cliente */}
       {showNovoCliente && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl animate-slideUp">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900 font-heading">Novo Cliente</h3>
               <button onClick={() => setShowNovoCliente(false)} className="p-2 rounded-lg hover:bg-gray-100">

@@ -52,13 +52,17 @@ export async function POST(request: Request) {
       },
     })
 
-    // Auto-create pagamento pendente
+    // Auto-create pagamento
+    const formaPag = body.formaPagamento || 'pendente'
+    const pago = formaPag !== 'pendente'
     await prisma.pagamento.create({
       data: {
         clienteId: encordoamento.clienteId,
         encordoamentoId: encordoamento.id,
         valor: encordoamento.preco,
-        status: 'pendente',
+        status: pago ? 'pago' : 'pendente',
+        formaPagamento: pago ? formaPag : null,
+        ...(pago ? { dataPagamento: new Date() } : {}),
       },
     })
 

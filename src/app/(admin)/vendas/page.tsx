@@ -324,9 +324,18 @@ export default function VendasPage() {
     if (!cobranca) return
     const tel = cobranca.venda.cliente.telefone.replace(/\D/g, '')
     const telFormatado = tel.startsWith('55') ? tel : `55${tel}`
-    window.open(`https://wa.me/${telFormatado}?text=${encodeURIComponent(msgCustom)}`, '_blank')
+    const url = `https://api.whatsapp.com/send?phone=${telFormatado}&text=${encodeURIComponent(msgCustom)}`
+    const clienteNome = cobranca.venda.cliente.nome
     setCobranca(null)
-    toast({ title: `Cobrança enviada para ${cobranca.venda.cliente.nome}`, type: 'success' })
+    // Usar link <a> programático para evitar bloqueio de pop-up
+    const link = document.createElement('a')
+    link.href = url
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast({ title: `Cobrança enviada para ${clienteNome}`, type: 'success' })
   }
   const copiarMensagem = () => { navigator.clipboard.writeText(msgCustom); toast({ title: 'Mensagem copiada!', type: 'success' }) }
 
@@ -362,32 +371,32 @@ export default function VendasPage() {
       </div>
 
       {/* KPI Cards — clicáveis para filtrar */}
-      <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
         <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-          <p className="text-xs text-blue-600 uppercase font-semibold">Vendas</p>
-          <p className="text-xl font-bold text-blue-700">{resumo.quantidade}</p>
+          <p className="text-[10px] sm:text-xs text-blue-600 uppercase font-semibold">Vendas</p>
+          <p className="text-lg sm:text-xl font-bold text-blue-700">{resumo.quantidade}</p>
         </div>
         <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
-          <p className="text-xs text-purple-600 uppercase font-semibold">Raquetes</p>
-          <p className="text-xl font-bold text-purple-700">{resumo.totalRaquetes}</p>
+          <p className="text-[10px] sm:text-xs text-purple-600 uppercase font-semibold">Raquetes</p>
+          <p className="text-lg sm:text-xl font-bold text-purple-700">{resumo.totalRaquetes}</p>
         </div>
-        <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-          <p className="text-xs text-emerald-600 uppercase font-semibold">Total</p>
-          <p className="text-xl font-bold text-emerald-700">{v$(resumo.total)}</p>
+        <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100 col-span-2 sm:col-span-1">
+          <p className="text-[10px] sm:text-xs text-emerald-600 uppercase font-semibold">Total</p>
+          <p className="text-lg sm:text-xl font-bold text-emerald-700">{v$(resumo.total)}</p>
         </div>
         <button onClick={() => filtrarPorStatus('pago')}
           className={`rounded-xl p-3 border text-left transition-all ${
             statusFiltro === 'pago' ? 'ring-2 ring-green-500 border-green-300 bg-green-100' : 'bg-green-50 border-green-100'
           }`}>
-          <p className="text-xs text-green-600 uppercase font-semibold">Recebido</p>
-          <p className="text-xl font-bold text-green-700">{v$(resumo.totalPago)}</p>
+          <p className="text-[10px] sm:text-xs text-green-600 uppercase font-semibold">Recebido</p>
+          <p className="text-lg sm:text-xl font-bold text-green-700">{v$(resumo.totalPago)}</p>
         </button>
         <button onClick={() => filtrarPorStatus('pendente')}
           className={`rounded-xl p-3 border text-left transition-all ${
             statusFiltro === 'pendente' ? 'ring-2 ring-red-500 border-red-300 bg-red-100' : 'bg-red-50 border-red-100'
           }`}>
-          <p className="text-xs text-red-600 uppercase font-semibold">Pendente</p>
-          <p className="text-xl font-bold text-red-700">{v$(resumo.totalPendente)}</p>
+          <p className="text-[10px] sm:text-xs text-red-600 uppercase font-semibold">Pendente</p>
+          <p className="text-lg sm:text-xl font-bold text-red-700">{v$(resumo.totalPendente)}</p>
         </button>
       </div>
 
@@ -401,10 +410,10 @@ export default function VendasPage() {
 
       {/* Filtros */}
       <div className="space-y-3">
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
           {PERIODOS.map(p => (
             <button key={p.value} onClick={() => setPeriodo(p.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                 periodo === p.value ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}>{p.label}</button>
           ))}
@@ -461,7 +470,7 @@ export default function VendasPage() {
             {idx === ultimoPendenteIdx && ultimoPendenteIdx > 0 && (
               <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wider pt-3 pb-2">Pagos</p>
             )}
-            <div className={`rounded-xl p-4 border transition-all duration-300 ${
+            <div className={`rounded-xl p-3 sm:p-4 border transition-all duration-300 ${
               v.pagamento?.status === 'pago' ? 'bg-green-50/50 border-green-200 opacity-70' : 'bg-white border-gray-100 hover:border-emerald-200'
             }`}>
               <div className="flex items-start justify-between">
@@ -470,7 +479,7 @@ export default function VendasPage() {
                     {getStatusIcon(v)}
                     <p className="font-medium text-sm text-gray-800 truncate">{v.cliente.nome}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                  <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 text-xs text-gray-500">
                     {v.corda && (
                       <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
                         {v.corda.nome} {v.tensao ? `${v.tensao}lbs` : ''}
@@ -520,47 +529,47 @@ export default function VendasPage() {
                 </div>
               </div>
               {/* Ações */}
-              <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
+              <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-gray-50 space-y-2">
                 {v.pagamento && v.pagamento.status === 'pendente' && (
                   <div className="space-y-2">
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                       <button onClick={() => marcarPago(v.pagamento!.id, 'pix', v.cliente.nome)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
-                        <Smartphone className="w-3.5 h-3.5" /> PIX
+                        className="flex items-center justify-center gap-1 sm:gap-1.5 py-2.5 sm:py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 active:bg-green-200 transition-colors min-h-[44px]">
+                        <Smartphone className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> PIX
                       </button>
                       <button onClick={() => marcarPago(v.pagamento!.id, 'dinheiro', v.cliente.nome)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
-                        <Banknote className="w-3.5 h-3.5" /> Dinheiro
+                        className="flex items-center justify-center gap-1 sm:gap-1.5 py-2.5 sm:py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 active:bg-green-200 transition-colors min-h-[44px]">
+                        <Banknote className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Dinheiro
                       </button>
                       <button onClick={() => marcarPago(v.pagamento!.id, 'cartao', v.cliente.nome)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors">
-                        <CreditCard className="w-3.5 h-3.5" /> Cartão
+                        className="flex items-center justify-center gap-1 sm:gap-1.5 py-2.5 sm:py-2.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 active:bg-green-200 transition-colors min-h-[44px]">
+                        <CreditCard className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Cartão
                       </button>
                     </div>
                     <button onClick={() => abrirCobranca(v)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors">
-                      <MessageCircle className="w-3.5 h-3.5" /> Cobrar via WhatsApp
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors min-h-[44px]">
+                      <MessageCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Cobrar via WhatsApp
                     </button>
                   </div>
                 )}
                 {v.pagamento && v.pagamento.status === 'pago' && (
                   <button onClick={() => desfazerPagamento(v.pagamento!.id, v.cliente.nome, v.preco)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100 transition-colors">
-                    <XCircle className="w-3.5 h-3.5" /> Desfazer pagamento
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100 active:bg-amber-200 transition-colors min-h-[44px]">
+                    <XCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Desfazer pagamento
                   </button>
                 )}
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-1.5 sm:gap-2 flex-wrap">
                   <button onClick={() => abrirEdicao(v)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
-                    <Pencil className="w-3 h-3" /> Editar
+                    className="flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 active:bg-blue-200 transition-colors min-h-[36px]">
+                    <Pencil className="w-3.5 h-3.5 sm:w-3 sm:h-3" /> Editar
                   </button>
                   <Link href={`/encordoamento?clienteId=${v.cliente.id}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors">
-                    <RotateCcw className="w-3 h-3" /> Nova venda
+                    className="flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 active:bg-emerald-200 transition-colors min-h-[36px]">
+                    <RotateCcw className="w-3.5 h-3.5 sm:w-3 sm:h-3" /> Nova venda
                   </Link>
                   <button onClick={() => excluirVenda(v.id, v.cliente.nome)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition-colors">
-                    <Trash2 className="w-3 h-3" /> Excluir
+                    className="flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 active:bg-red-200 transition-colors min-h-[36px]">
+                    <Trash2 className="w-3.5 h-3.5 sm:w-3 sm:h-3" /> Excluir
                   </button>
                 </div>
               </div>

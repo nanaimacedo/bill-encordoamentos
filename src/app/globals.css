@@ -221,6 +221,39 @@ main {
   border-radius: 4px;
 }
 
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  /* Prevent overscroll bounce on modals */
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+
+  /* Smoother touch scrolling */
+  .overflow-y-auto,
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Larger touch targets */
+  button, a {
+    min-height: 36px;
+  }
+
+  /* Prevent zoom on input focus (iOS) */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Hide scrollbar but keep scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Status badges with micro-animation */
 .badge-pulse {
   position: relative;

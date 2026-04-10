@@ -177,11 +177,11 @@ export default function ProdutosPage() {
                     <p className="text-xs text-gray-400">Estoque: {c.estoque}</p>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <button onClick={() => editarCorda(c)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600" title="Editar">
-                      <Edit2 className="w-3.5 h-3.5" />
+                    <button onClick={() => editarCorda(c)} className="p-2 sm:p-1.5 rounded-lg hover:bg-gray-100 active:bg-blue-50 text-gray-400 hover:text-blue-600 min-w-[36px] min-h-[36px] flex items-center justify-center" title="Editar">
+                      <Edit2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
-                    <button onClick={() => deletarCorda(c.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-600" title="Remover">
-                      <Trash2 className="w-3.5 h-3.5" />
+                    <button onClick={() => deletarCorda(c.id)} className="p-2 sm:p-1.5 rounded-lg hover:bg-gray-100 active:bg-red-50 text-gray-400 hover:text-red-600 min-w-[36px] min-h-[36px] flex items-center justify-center" title="Remover">
+                      <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -212,11 +212,11 @@ export default function ProdutosPage() {
                     <p className="text-xs text-gray-400">Estoque: {p.estoque}</p>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <button onClick={() => editarProduto(p)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600" title="Editar">
-                      <Edit2 className="w-3.5 h-3.5" />
+                    <button onClick={() => editarProduto(p)} className="p-2 sm:p-1.5 rounded-lg hover:bg-gray-100 active:bg-blue-50 text-gray-400 hover:text-blue-600 min-w-[36px] min-h-[36px] flex items-center justify-center" title="Editar">
+                      <Edit2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
-                    <button onClick={() => deletarProduto(p.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-600" title="Remover">
-                      <Trash2 className="w-3.5 h-3.5" />
+                    <button onClick={() => deletarProduto(p.id)} className="p-2 sm:p-1.5 rounded-lg hover:bg-gray-100 active:bg-red-50 text-gray-400 hover:text-red-600 min-w-[36px] min-h-[36px] flex items-center justify-center" title="Remover">
+                      <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -228,8 +228,8 @@ export default function ProdutosPage() {
 
       {/* Modal Form */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-3 max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full max-w-sm space-y-3 max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-800">
               {editando ? (tab === 'cordas' ? 'Editar Corda' : 'Editar Produto') : (tab === 'cordas' ? 'Nova Corda' : 'Novo Produto')}
             </h3>
