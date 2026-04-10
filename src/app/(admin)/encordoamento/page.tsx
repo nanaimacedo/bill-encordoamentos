@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
-import { Search, RotateCcw, Check, Plus, Truck, Package, X, CreditCard, Banknote, Smartphone, Clock } from 'lucide-react'
+import { Search, RotateCcw, Check, Plus, Truck, Package, X, CreditCard, Banknote, Smartphone, Clock, ChevronDown } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -77,6 +77,7 @@ function NovoEncordoamentoPage() {
   const [buscaProduto, setBuscaProduto] = useState('')
   const [catProduto, setCatProduto] = useState<string>('todos')
   const [formaPagamento, setFormaPagamento] = useState<'pendente' | 'cartao' | 'pix' | 'dinheiro'>('pendente')
+  const [secaoAberta, setSecaoAberta] = useState<string>('cordas') // accordion mobile
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [lastEnc, setLastEnc] = useState<LastEncordoamento | null>(null)
@@ -420,108 +421,117 @@ function NovoEncordoamentoPage() {
                 </div>
               </div>
 
-              {/* SEÇÃO: Cordas — Layout POS (badges grid) */}
-              <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-                  {tipoEnc === 'hibrida' ? 'Corda Principal (Mains)' : 'Cordas'}
-                  {Object.keys(cordasExtras).length > 0 && (
-                    <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full ml-1">
-                      {Object.values(cordasExtras).reduce((s, c) => s + c.qtd, 0)} un
-                    </span>
-                  )}
-                </p>
-                <input type="text" value={buscaCorda} onChange={e => setBuscaCorda(e.target.value)}
-                  placeholder="Buscar corda..."
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2" />
-                {/* Abas por marca */}
-                {(() => {
-                  const cordasFiltradas = cordas.filter(c => !buscaCorda || c.nome.toLowerCase().includes(buscaCorda.toLowerCase()) || c.marca.toLowerCase().includes(buscaCorda.toLowerCase()))
-                  const marcas = ['Todas', ...([...new Set(cordasFiltradas.map(c => c.marca))].sort())]
-                  return (
-                    <>
-                      <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar-hide">
-                        {marcas.map(m => (
-                          <button key={m} onClick={() => setBuscaCorda(m === 'Todas' ? '' : m)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                              (m === 'Todas' && !buscaCorda) || buscaCorda === m
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}>
-                            {m}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                        {cordasFiltradas.map(c => {
-                          const sel = cordasExtras[c.id]
-                          const isMain = cordaSelecionada === c.id
-                          return (
-                            <div key={c.id}
-                              className={`relative rounded-xl p-2.5 text-center transition-all border-2 cursor-pointer ${
-                                isMain ? 'bg-emerald-100 border-emerald-500 shadow-sm shadow-emerald-200' :
-                                sel ? 'bg-emerald-50 border-emerald-400' :
-                                'bg-white border-gray-200 hover:border-emerald-300 hover:shadow-sm'
-                              }`}>
-                              {/* Badge de quantidade */}
-                              {sel && sel.qtd > 1 && (
-                                <span className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow">
-                                  x{sel.qtd}
-                                </span>
-                              )}
-                              {/* Estoque baixo */}
-                              {c.estoque <= 0 && (
-                                <span className="absolute top-1 left-1 text-[9px] bg-red-600 text-white px-1 py-0.5 rounded font-bold">SEM EST.</span>
-                              )}
-                              {c.estoque > 0 && c.estoque <= 3 && (
-                                <span className="absolute top-1 left-1 text-[9px] bg-amber-500 text-white px-1 py-0.5 rounded font-bold">{c.estoque} un</span>
-                              )}
-                              {/* Toque para encordoar */}
-                              <button className="w-full" onClick={() => {
-                                setCordaSelecionada(c.id); setPreco(c.preco)
-                                // Inicializa com qtd=1 se ainda não tem extras
-                                if (!cordasExtras[c.id]) setCordasExtras(prev => ({ ...prev, [c.id]: { preco: c.preco, qtd: 1 } }))
-                              }}>
-                                <p className="text-xs font-bold text-gray-800 leading-tight truncate">{c.nome}</p>
-                                <p className="text-[10px] text-gray-400 truncate">{c.marca} · {c.tipo}</p>
-                                <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(c.preco)}</p>
-                                {isMain && <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">encordoar</span>}
+              {/* SEÇÃO: Cordas — Accordion */}
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <button onClick={() => setSecaoAberta(secaoAberta === 'cordas' ? '' : 'cordas')}
+                  className="w-full flex items-center justify-between p-3 bg-white active:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+                      {tipoEnc === 'hibrida' ? 'Corda Principal' : 'Cordas'}
+                    </p>
+                    {cordaSel && secaoAberta !== 'cordas' && (
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium truncate max-w-[160px]">
+                        {cordaSel.nome} · {formatCurrency(cordaSel.preco)}
+                      </span>
+                    )}
+                    {Object.keys(cordasExtras).length > 0 && (
+                      <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full text-xs font-bold">
+                        {Object.values(cordasExtras).reduce((s, c) => s + c.qtd, 0)} un
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${secaoAberta === 'cordas' ? 'rotate-180' : ''}`} />
+                </button>
+                {secaoAberta === 'cordas' && (
+                  <div className="p-3 pt-0 space-y-2">
+                    <input type="text" value={buscaCorda} onChange={e => setBuscaCorda(e.target.value)}
+                      placeholder="Buscar corda..."
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+                    {(() => {
+                      const cordasFiltradas = cordas.filter(c => !buscaCorda || c.nome.toLowerCase().includes(buscaCorda.toLowerCase()) || c.marca.toLowerCase().includes(buscaCorda.toLowerCase()))
+                      const marcas = ['Todas', ...([...new Set(cordasFiltradas.map(c => c.marca))].sort())]
+                      return (
+                        <>
+                          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                            {marcas.map(m => (
+                              <button key={m} onClick={() => setBuscaCorda(m === 'Todas' ? '' : m)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                                  (m === 'Todas' && !buscaCorda) || buscaCorda === m
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}>
+                                {m}
                               </button>
-                              {/* Botão avulsa */}
-                              <div className="mt-1.5 flex justify-center">
-                                {sel ? (
-                                  <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200">
-                                    <button onClick={() => removeCordaExtra(c.id)}
-                                      className="w-7 h-7 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-l-lg font-bold text-sm">-</button>
-                                    <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
-                                    <button onClick={() => addCordaExtra(c.id, c.preco)}
-                                      className="w-7 h-7 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-r-lg font-bold text-sm">+</button>
-                                  </div>
-                                ) : (
-                                  <button onClick={() => addCordaExtra(c.id, c.preco)}
-                                    className="text-[10px] px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg font-semibold hover:bg-emerald-100 transition-colors">
-                                    + avulsa
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 max-h-48 sm:max-h-64 overflow-y-auto overscroll-contain">
+                            {cordasFiltradas.map(c => {
+                              const sel = cordasExtras[c.id]
+                              const isMain = cordaSelecionada === c.id
+                              return (
+                                <div key={c.id}
+                                  className={`relative rounded-xl p-2.5 text-center transition-all border-2 ${
+                                    isMain ? 'bg-emerald-100 border-emerald-500 shadow-sm shadow-emerald-200' :
+                                    sel ? 'bg-emerald-50 border-emerald-400' :
+                                    'bg-white border-gray-200'
+                                  }`}>
+                                  {sel && sel.qtd > 1 && (
+                                    <span className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow">
+                                      x{sel.qtd}
+                                    </span>
+                                  )}
+                                  {c.estoque <= 0 && (
+                                    <span className="absolute top-1 left-1 text-[9px] bg-red-600 text-white px-1 py-0.5 rounded font-bold">SEM EST.</span>
+                                  )}
+                                  {c.estoque > 0 && c.estoque <= 3 && (
+                                    <span className="absolute top-1 left-1 text-[9px] bg-amber-500 text-white px-1 py-0.5 rounded font-bold">{c.estoque} un</span>
+                                  )}
+                                  <button className="w-full" onClick={() => {
+                                    setCordaSelecionada(c.id); setPreco(c.preco)
+                                    if (!cordasExtras[c.id]) setCordasExtras(prev => ({ ...prev, [c.id]: { preco: c.preco, qtd: 1 } }))
+                                    setSecaoAberta('tensao') // auto-avança para tensão
+                                  }}>
+                                    <p className="text-xs font-bold text-gray-800 leading-tight truncate">{c.nome}</p>
+                                    <p className="text-[10px] text-gray-400 truncate">{c.marca} · {c.tipo}</p>
+                                    <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(c.preco)}</p>
+                                    {isMain && <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">encordoar</span>}
                                   </button>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
+                                  <div className="mt-1.5 flex justify-center">
+                                    {sel ? (
+                                      <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200">
+                                        <button onClick={() => removeCordaExtra(c.id)}
+                                          className="w-8 h-8 flex items-center justify-center text-red-500 active:bg-red-50 rounded-l-lg font-bold text-sm">-</button>
+                                        <span className="w-5 text-center text-xs font-bold">{sel.qtd}</span>
+                                        <button onClick={() => addCordaExtra(c.id, c.preco)}
+                                          className="w-8 h-8 flex items-center justify-center text-emerald-600 active:bg-emerald-50 rounded-r-lg font-bold text-sm">+</button>
+                                      </div>
+                                    ) : (
+                                      <button onClick={() => addCordaExtra(c.id, c.preco)}
+                                        className="text-[10px] px-2.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg font-semibold active:bg-emerald-100 transition-colors">
+                                        + avulsa
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )
+                    })()}
+                    {cordaSel && cordaSel.estoque <= 3 && (
+                      <div className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                        cordaSel.estoque <= 0
+                          ? 'bg-red-50 text-red-700 border border-red-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      }`}>
+                        <span>{cordaSel.estoque <= 0 ? '!' : '#'}</span>
+                        {cordaSel.estoque <= 0
+                          ? `${cordaSel.nome} esta sem estoque!`
+                          : `${cordaSel.nome} - apenas ${cordaSel.estoque} unidade${cordaSel.estoque > 1 ? 's' : ''} em estoque`
+                        }
                       </div>
-                    </>
-                  )
-                })()}
-                {/* Alerta de estoque baixo para corda selecionada */}
-                {cordaSel && cordaSel.estoque <= 3 && (
-                  <div className={`mt-2 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
-                    cordaSel.estoque <= 0
-                      ? 'bg-red-50 text-red-700 border border-red-200'
-                      : 'bg-amber-50 text-amber-700 border border-amber-200'
-                  }`}>
-                    <span>{cordaSel.estoque <= 0 ? '⚠' : '📦'}</span>
-                    {cordaSel.estoque <= 0
-                      ? `${cordaSel.nome} está sem estoque!`
-                      : `${cordaSel.nome} — apenas ${cordaSel.estoque} unidade${cordaSel.estoque > 1 ? 's' : ''} em estoque`
-                    }
+                    )}
                   </div>
                 )}
               </div>
@@ -547,43 +557,63 @@ function NovoEncordoamentoPage() {
                 </div>
               )}
 
-              {/* SEÇÃO: Tensão Principal */}
-              <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-                  {tipoEnc === 'hibrida' ? 'Tensão Mains' : 'Tensão'} · <span className="text-gray-800 text-sm">{tensao} lbs</span>
-                </p>
-                <div className="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
-                  {TENSOES_MAIN.map(t => (
-                    <button key={t} onClick={() => setTensao(t)}
-                      className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                        tensao === t
-                          ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
+              {/* SEÇÃO: Tensão Principal — Accordion */}
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <button onClick={() => setSecaoAberta(secaoAberta === 'tensao' ? '' : 'tensao')}
+                  className="w-full flex items-center justify-between p-3 bg-white active:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+                      {tipoEnc === 'hibrida' ? 'Tensao Mains' : 'Tensao'}
+                    </p>
+                    <span className="text-sm font-bold text-gray-800">{tensao} lbs</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${secaoAberta === 'tensao' ? 'rotate-180' : ''}`} />
+                </button>
+                {secaoAberta === 'tensao' && (
+                  <div className="p-3 pt-0">
+                    <div className="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
+                      {TENSOES_MAIN.map(t => (
+                        <button key={t} onClick={() => { setTensao(t); setSecaoAberta(tipoEnc === 'hibrida' ? 'tensaoCross' : 'produtos') }}
+                          className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                            tensao === t
+                              ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
+                              : 'bg-gray-100 text-gray-700 active:bg-gray-300'
+                          }`}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* SEÇÃO: Tensão Cruzadas - apenas em híbrida */}
               {tipoEnc === 'hibrida' && (
-                <div>
-                  <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-2">
-                    Tensão Crosses · <span className="text-gray-800 text-sm">{tensaoCross} lbs</span>
-                  </p>
-                  <div className="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
-                    {TENSOES_MAIN.map(t => (
-                      <button key={t} onClick={() => setTensaoCross(t)}
-                        className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                          tensaoCross === t
-                            ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}>
-                        {t}
-                      </button>
-                    ))}
-                  </div>
+                <div className="rounded-xl border border-purple-200 overflow-hidden">
+                  <button onClick={() => setSecaoAberta(secaoAberta === 'tensaoCross' ? '' : 'tensaoCross')}
+                    className="w-full flex items-center justify-between p-3 bg-white active:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Tensao Crosses</p>
+                      <span className="text-sm font-bold text-gray-800">{tensaoCross} lbs</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${secaoAberta === 'tensaoCross' ? 'rotate-180' : ''}`} />
+                  </button>
+                  {secaoAberta === 'tensaoCross' && (
+                    <div className="p-3 pt-0">
+                      <div className="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
+                        {TENSOES_MAIN.map(t => (
+                          <button key={t} onClick={() => { setTensaoCross(t); setSecaoAberta('produtos') }}
+                            className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                              tensaoCross === t
+                                ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
+                                : 'bg-gray-100 text-gray-700 active:bg-gray-300'
+                            }`}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -606,11 +636,11 @@ function NovoEncordoamentoPage() {
                 </div>
               </div>
 
-              {/* SEÇÃO: Produtos — Layout POS (badges grid com abas de categoria) */}
+              {/* SEÇÃO: Produtos — Accordion */}
               {produtos.length > 0 && (() => {
                 const catLabels: Record<string, string> = {
-                  servico: 'Mão de Obra', grip: 'Grips', overgrip: 'Overgrips',
-                  acessorio: 'Acessórios', raquete: 'Raquetes',
+                  servico: 'Mao de Obra', grip: 'Grips', overgrip: 'Overgrips',
+                  acessorio: 'Acessorios', raquete: 'Raquetes',
                 }
                 const categorias = [...new Set(produtos.map(p => p.categoria))].sort()
                 const filtrados = buscaProduto
@@ -619,73 +649,78 @@ function NovoEncordoamentoPage() {
                     ? produtos
                     : produtos.filter(p => p.categoria === catProduto)
                 return (
-                  <div>
-                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-                      Produtos {Object.keys(produtosSelecionados).length > 0 && (
-                        <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full ml-1">
-                          {Object.values(produtosSelecionados).reduce((s, p) => s + p.qtd, 0)} itens
-                        </span>
-                      )}
-                    </p>
-                    <input
-                      type="text" value={buscaProduto} onChange={e => setBuscaProduto(e.target.value)}
-                      placeholder="Buscar produto..."
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-2"
-                    />
-                    {/* Abas de categoria */}
-                    <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar-hide">
-                      <button onClick={() => setCatProduto('todos')}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                          catProduto === 'todos' && !buscaProduto ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}>
-                        Todos
-                      </button>
-                      {categorias.map(cat => (
-                        <button key={cat} onClick={() => { setCatProduto(cat); setBuscaProduto('') }}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                            catProduto === cat && !buscaProduto ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}>
-                          {catLabels[cat] || cat}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Grid de badges */}
-                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                      {filtrados.map(p => {
-                        const sel = produtosSelecionados[p.id]
-                        return (
-                          <div key={p.id}
-                            className={`relative rounded-xl p-2.5 text-center transition-all border-2 ${
-                              sel ? 'bg-emerald-50 border-emerald-400 shadow-sm' : 'bg-white border-gray-200 hover:border-emerald-300 hover:shadow-sm'
+                  <div className="rounded-xl border border-gray-200 overflow-hidden">
+                    <button onClick={() => setSecaoAberta(secaoAberta === 'produtos' ? '' : 'produtos')}
+                      className="w-full flex items-center justify-between p-3 bg-white active:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Produtos</p>
+                        {Object.keys(produtosSelecionados).length > 0 && (
+                          <span className="text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full text-xs font-bold">
+                            {Object.values(produtosSelecionados).reduce((s, p) => s + p.qtd, 0)} itens
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${secaoAberta === 'produtos' ? 'rotate-180' : ''}`} />
+                    </button>
+                    {secaoAberta === 'produtos' && (
+                      <div className="p-3 pt-0 space-y-2">
+                        <input
+                          type="text" value={buscaProduto} onChange={e => setBuscaProduto(e.target.value)}
+                          placeholder="Buscar produto..."
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                          <button onClick={() => setCatProduto('todos')}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                              catProduto === 'todos' && !buscaProduto ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}>
-                            {/* Badge de quantidade */}
-                            {sel && (
-                              <span className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow">
-                                {sel.qtd}
-                              </span>
-                            )}
-                            <p className="text-xs font-bold text-gray-800 leading-tight truncate">{p.nome}</p>
-                            <p className="text-[10px] text-gray-400">{catLabels[p.categoria] || p.categoria}</p>
-                            <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(p.preco)}</p>
-                            {/* Controles */}
-                            <div className="mt-1.5 flex justify-center">
-                              {sel ? (
-                                <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200">
-                                  <button onClick={() => removeProduto(p.id)}
-                                    className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-l-lg font-bold text-base">-</button>
-                                  <span className="w-6 text-center text-xs font-bold">{sel.qtd}</span>
-                                  <button onClick={() => addProduto(p.id, p.preco)}
-                                    className="w-8 h-8 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-r-lg font-bold text-base">+</button>
+                            Todos
+                          </button>
+                          {categorias.map(cat => (
+                            <button key={cat} onClick={() => { setCatProduto(cat); setBuscaProduto('') }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                                catProduto === cat && !buscaProduto ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}>
+                              {catLabels[cat] || cat}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 max-h-48 sm:max-h-64 overflow-y-auto overscroll-contain">
+                          {filtrados.map(p => {
+                            const sel = produtosSelecionados[p.id]
+                            return (
+                              <div key={p.id}
+                                className={`relative rounded-xl p-2.5 text-center transition-all border-2 ${
+                                  sel ? 'bg-emerald-50 border-emerald-400 shadow-sm' : 'bg-white border-gray-200'
+                                }`}>
+                                {sel && (
+                                  <span className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow">
+                                    {sel.qtd}
+                                  </span>
+                                )}
+                                <p className="text-xs font-bold text-gray-800 leading-tight truncate">{p.nome}</p>
+                                <p className="text-[10px] text-gray-400">{catLabels[p.categoria] || p.categoria}</p>
+                                <p className="text-sm font-bold text-emerald-600 mt-1">{formatCurrency(p.preco)}</p>
+                                <div className="mt-1.5 flex justify-center">
+                                  {sel ? (
+                                    <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200">
+                                      <button onClick={() => removeProduto(p.id)}
+                                        className="w-8 h-8 flex items-center justify-center text-red-500 active:bg-red-50 rounded-l-lg font-bold text-base">-</button>
+                                      <span className="w-6 text-center text-xs font-bold">{sel.qtd}</span>
+                                      <button onClick={() => addProduto(p.id, p.preco)}
+                                        className="w-8 h-8 flex items-center justify-center text-emerald-600 active:bg-emerald-50 rounded-r-lg font-bold text-base">+</button>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => addProduto(p.id, p.preco)}
+                                      className="w-8 h-8 flex items-center justify-center bg-emerald-600 text-white rounded-xl text-base font-bold active:bg-emerald-700 transition-colors shadow-sm">+</button>
+                                  )}
                                 </div>
-                              ) : (
-                                <button onClick={() => addProduto(p.id, p.preco)}
-                                  className="w-8 h-8 flex items-center justify-center bg-emerald-600 text-white rounded-xl text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">+</button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })()}
